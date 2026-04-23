@@ -10,6 +10,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { AuthModule } from './modules/auth/auth.module';
     CryptoModule,
     UsersModule,
     AuthModule,
+    OrganizationsModule,
     HealthModule,
   ],
 })
