@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { Button } from '@ktask/ui';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { NotificationsBell } from '@/components/notifications-bell';
 import { useAuthStore } from '@/stores/auth-store';
 import { logout } from '@/lib/auth';
 
@@ -62,6 +63,7 @@ export function Topbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <NotificationsBell />
           <ThemeToggle />
           <div className="bg-primary-subtle text-primary flex size-8 items-center justify-center rounded-full text-xs font-semibold">
             {initials || '?'}

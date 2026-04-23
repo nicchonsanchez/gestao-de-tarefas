@@ -3,6 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlertTriangle, Calendar, MessageSquare, CheckSquare, Paperclip } from 'lucide-react';
+import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import type { CardListItem } from '@/lib/queries/boards';
 
 const PRIORITY_COLOR: Record<CardListItem['priority'], string> = {
@@ -23,6 +24,9 @@ export function CardItem({ card }: { card: CardListItem }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
   });
+  const router = useRouter();
+  const params = useSearchParams();
+  const routeParams = useParams<{ boardId: string }>();
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -30,13 +34,33 @@ export function CardItem({ card }: { card: CardListItem }) {
     opacity: isDragging ? 0.4 : 1,
   };
 
+  function openCard() {
+    const next = new URLSearchParams(params.toString());
+    next.set('card', card.id);
+    router.push(`/b/${routeParams.boardId}?${next.toString()}`, { scroll: false });
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-bg border-border hover:border-border-strong cursor-grab rounded-lg border p-3 text-left shadow-sm active:cursor-grabbing"
+      onClick={(e) => {
+        // Só abre modal se o pointer não estava arrastando
+        // (dnd-kit já filtra via activationConstraint distance:6)
+        if ((e.target as HTMLElement).closest('[data-no-modal]')) return;
+        openCard();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openCard();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      className="bg-bg border-border hover:border-border-strong cursor-pointer rounded-lg border p-3 text-left shadow-sm"
     >
       <CardInner card={card} />
     </div>

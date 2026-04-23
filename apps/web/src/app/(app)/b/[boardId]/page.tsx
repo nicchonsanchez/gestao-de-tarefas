@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -26,6 +26,7 @@ import { Loader2 } from 'lucide-react';
 import { boardsQueries, moveCard, type BoardDetail, type CardListItem } from '@/lib/queries/boards';
 import { CardItem, CardOverlay } from '@/components/board/card-item';
 import { ListColumn } from '@/components/board/list-column';
+import { CardModal } from '@/components/board/card-modal';
 import { ApiError } from '@/lib/api-client';
 
 export default function BoardPage() {
@@ -195,6 +196,10 @@ export default function BoardPage() {
 
         <DragOverlay>{activeCard && <CardOverlay card={activeCard} />}</DragOverlay>
       </DndContext>
+
+      <Suspense fallback={null}>
+        <CardModal boardId={boardId} />
+      </Suspense>
     </div>
   );
 }
