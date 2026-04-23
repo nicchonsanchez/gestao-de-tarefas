@@ -1,0 +1,214 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Board, BoardVisibility, Prisma } from '@prisma/client';
+import { ORG_ROLES_WITH_BOARD_BYPASS } from '@ktask/contracts';
+
+import { PrismaService } from '@/common/prisma/prisma.service';
+import type { TenantContext } from '@/common/tenant/tenant.types';
+
+import { BoardAccessService } from './board-access.service';
+
+interface CreateBoardInput {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  visibility?: BoardVisibility;
+}
+
+interface UpdateBoardInput {
+  name?: string;
+  description?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  visibility?: BoardVisibility;
+}
+
+@Injectable()
+export class BoardsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: BoardAccessService,
+  ) {}
+
+  /**
+   * Lista os quadros visíveis ao usuário na Org atual.
+   * OWNER/ADMIN/GESTOR veem todos (bypass). MEMBER vê BoardMember + ORGANIZATION-visible.
+   * GUEST só vê BoardMember.
+   */
+  async listForUser(userId: string, tenant: TenantContext) {
+    const bypass = (ORG_ROLES_WITH_BOARD_BYPASS as readonly string[]).includes(tenant.role);
+
+    const where: Prisma.BoardWhereInput = bypass
+      ? { organizationId: tenant.organizationId, isArchived: false }
+      : {
+          organizationId: tenant.organizationId,
+          isArchived: false,
+          OR: [
+            { members: { some: { userId } } },
+            ...(tenant.role !== 'GUEST' ? [{ visibility: 'ORGANIZATION' as const }] : []),
+          ],
+        };
+
+    const boards = await this.prisma.board.findMany({
+      where,
+      orderBy: [{ updatedAt: 'desc' }],
+      include: {
+        _count: { select: { cards: true, members: true } },
+      },
+    });
+
+    return boards.map((b) => ({
+      id: b.id,
+      name: b.name,
+      description: b.description,
+      color: b.color,
+      icon: b.icon,
+      visibility: b.visibility,
+      isArchived: b.isArchived,
+      createdAt: b.createdAt,
+      updatedAt: b.updatedAt,
+      cardsCount: b._count.cards,
+      membersCount: b._count.members,
+    }));
+  }
+
+  async create(params: {
+    userId: string;
+    tenant: TenantContext;
+    input: CreateBoardInput;
+  }): Promise<Board> {
+    const { userId, tenant, input } = params;
+
+    // Quem pode criar quadro? GESTOR+ em geral. GUEST não.
+    if (tenant.role === 'GUEST') {
+      throw new NotFoundException('Você não tem permissão para criar quadros.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const board = await tx.board.create({
+        data: {
+          organizationId: tenant.organizationId,
+          name: input.name,
+          description: input.description ?? null,
+          color: input.color ?? null,
+          icon: input.icon ?? null,
+          visibility: input.visibility ?? 'PRIVATE',
+          createdById: userId,
+        },
+      });
+
+      // O criador vira BoardMember ADMIN explícito, independente do papel na Org.
+      await tx.boardMember.create({
+        data: {
+          boardId: board.id,
+          userId,
+          role: 'ADMIN',
+        },
+      });
+
+      // Listas default
+      await tx.list.createMany({
+        data: [
+          { boardId: board.id, name: 'A Fazer', position: 1024 },
+          { boardId: board.id, name: 'Fazendo', position: 2048 },
+          { boardId: board.id, name: 'Concluído', position: 3072 },
+        ],
+      });
+
+      await tx.activity.create({
+        data: {
+          organizationId: tenant.organizationId,
+          boardId: board.id,
+          actorId: userId,
+          type: 'BOARD_CREATED',
+          payload: { boardId: board.id, name: board.name },
+        },
+      });
+
+      return board;
+    });
+  }
+
+  async getOne(userId: string, tenant: TenantContext, boardId: string) {
+    await this.access.assertAccess(userId, boardId, tenant, 'VIEWER');
+    return this.prisma.board.findUnique({
+      where: { id: boardId },
+      include: {
+        lists: {
+          where: { isArchived: false },
+          orderBy: { position: 'asc' },
+          include: {
+            cards: {
+              where: { isArchived: false },
+              orderBy: { position: 'asc' },
+              include: {
+                members: {
+                  include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+                },
+                labels: { include: { label: true } },
+                _count: { select: { comments: true, attachments: true, checklists: true } },
+              },
+            },
+          },
+        },
+        labels: true,
+        members: {
+          include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+      },
+    });
+  }
+
+  async update(userId: string, tenant: TenantContext, boardId: string, input: UpdateBoardInput) {
+    await this.access.assertAccess(userId, boardId, tenant, 'ADMIN');
+
+    const updated = await this.prisma.board.update({
+      where: { id: boardId },
+      data: {
+        name: input.name,
+        description: input.description,
+        color: input.color,
+        icon: input.icon,
+        visibility: input.visibility,
+      },
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId,
+        actorId: userId,
+        type: 'BOARD_UPDATED',
+        payload: { boardId, input } as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    return updated;
+  }
+
+  async archive(userId: string, tenant: TenantContext, boardId: string) {
+    await this.access.assertAccess(userId, boardId, tenant, 'ADMIN');
+    const updated = await this.prisma.board.update({
+      where: { id: boardId },
+      data: { isArchived: true },
+    });
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId,
+        actorId: userId,
+        type: 'BOARD_ARCHIVED',
+        payload: { boardId },
+      },
+    });
+    return updated;
+  }
+
+  async restore(userId: string, tenant: TenantContext, boardId: string) {
+    await this.access.assertAccess(userId, boardId, tenant, 'ADMIN');
+    return this.prisma.board.update({
+      where: { id: boardId },
+      data: { isArchived: false },
+    });
+  }
+}

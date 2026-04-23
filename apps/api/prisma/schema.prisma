@@ -1,7 +1,8 @@
 // KTask — Prisma schema
 //
-// Fase 0: modelos fundacionais (User, Organization, Membership, Invitation, Session).
-// Próximas fases adicionam Board, List, Card, etc. conforme `tarefas-md/03-entidades-e-dominio.md`.
+// Modelos completos para MVP (Kanban: quadros, listas, cards, labels,
+// checklists, anexos, comentários, activity log, notifications).
+// Ver `tarefas-md/03-entidades-e-dominio.md` para o modelo de domínio.
 
 generator client {
   provider        = "prisma-client-js"
@@ -13,7 +14,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// -------------------- Enums --------------------
+// ==================== Enums ====================
 
 enum OrgRole {
   OWNER
@@ -30,7 +31,71 @@ enum OrgPlan {
   ENTERPRISE
 }
 
-// -------------------- Models --------------------
+enum BoardRole {
+  ADMIN
+  EDITOR
+  COMMENTER
+  VIEWER
+}
+
+enum BoardVisibility {
+  PRIVATE
+  ORGANIZATION
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AttachmentKind {
+  FILE
+  LINK
+  IMAGE
+}
+
+enum NotificationType {
+  MENTION
+  ASSIGNED
+  DUE_SOON
+  COMMENT
+  SLA_BREACH
+  AUTOMATION
+  CUSTOM
+}
+
+enum ActivityType {
+  CARD_CREATED
+  CARD_UPDATED
+  CARD_MOVED
+  CARD_ARCHIVED
+  CARD_RESTORED
+  CARD_ASSIGNED
+  CARD_UNASSIGNED
+  LABEL_ADDED
+  LABEL_REMOVED
+  COMMENT_ADDED
+  COMMENT_EDITED
+  COMMENT_DELETED
+  CHECKLIST_CREATED
+  CHECKLIST_ITEM_DONE
+  CHECKLIST_ITEM_UNDONE
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+  LIST_CREATED
+  LIST_UPDATED
+  LIST_ARCHIVED
+  BOARD_CREATED
+  BOARD_UPDATED
+  BOARD_ARCHIVED
+  MEMBER_JOINED_BOARD
+  MEMBER_LEFT_BOARD
+  BOARD_VIEWED_IMPLICIT
+}
+
+// ==================== Tenant / Auth ====================
 
 model User {
   id               String    @id @default(cuid())
@@ -47,9 +112,17 @@ model User {
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
 
-  memberships      Membership[]
-  sessions         Session[]
-  invitationsSent  Invitation[] @relation("InvitationCreator")
+  memberships     Membership[]
+  sessions        Session[]
+  invitationsSent Invitation[]    @relation("InvitationCreator")
+  boardMemberships BoardMember[]
+  boardsCreated   Board[]         @relation("BoardCreator")
+  cardsCreated    Card[]          @relation("CardCreator")
+  cardAssignments CardMember[]
+  commentsAuthored Comment[]
+  attachmentsUploaded Attachment[]
+  activities      Activity[]      @relation("ActivityActor")
+  notifications   Notification[]
 
   @@index([email])
 }
@@ -68,6 +141,9 @@ model Organization {
 
   memberships Membership[]
   invitations Invitation[]
+  boards      Board[]
+  labels      Label[]
+  activities  Activity[]
 
   @@index([slug])
 }
@@ -121,4 +197,251 @@ model Session {
   @@index([userId])
   @@index([tokenHash])
   @@index([expiresAt])
+}
+
+// ==================== Boards ====================
+
+model Board {
+  id             String          @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  color          String?
+  icon           String?
+  visibility     BoardVisibility @default(PRIVATE)
+  isArchived     Boolean         @default(false)
+  createdById    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("BoardCreator", fields: [createdById], references: [id])
+  lists        List[]
+  labels       Label[]
+  members      BoardMember[]
+  cards        Card[]
+
+  @@index([organizationId, isArchived])
+}
+
+model BoardMember {
+  id        String    @id @default(cuid())
+  boardId   String
+  userId    String
+  role      BoardRole
+  createdAt DateTime  @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([userId])
+}
+
+model List {
+  id         String    @id @default(cuid())
+  boardId    String
+  name       String
+  position   Float
+  color      String?
+  icon       String?
+  wipLimit   Int?
+  slaMinutes Int?
+  isArchived Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards Card[]
+
+  @@index([boardId, position])
+}
+
+// ==================== Cards ====================
+
+model Card {
+  id              String    @id @default(cuid())
+  organizationId  String    // denormalizado: acelera filtros e futura RLS
+  boardId         String
+  listId          String
+  title           String
+  description     Json?     // ProseMirror / Tiptap JSON (MVP usa subset simples)
+  position        Float
+  priority        Priority  @default(MEDIUM)
+  coverAttachmentId String?
+  startDate       DateTime?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  estimateMinutes Int?
+  isArchived      Boolean   @default(false)
+  parentCardId    String?
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  board     Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  list      List         @relation(fields: [listId], references: [id], onDelete: Cascade)
+  createdBy User         @relation("CardCreator", fields: [createdById], references: [id])
+  parent    Card?        @relation("Subtasks", fields: [parentCardId], references: [id], onDelete: SetNull)
+  children  Card[]       @relation("Subtasks")
+  members   CardMember[]
+  labels    CardLabel[]
+  checklists Checklist[]
+  attachments Attachment[]
+  comments  Comment[]
+  activities Activity[]
+
+  @@index([organizationId])
+  @@index([boardId, isArchived])
+  @@index([listId, position])
+  @@index([dueDate])
+}
+
+model CardMember {
+  cardId String
+  userId String
+  card   Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, userId])
+}
+
+// ==================== Labels ====================
+
+// Um label pode ser global da Org (boardId nulo) ou local de um quadro.
+// Na UI do MVP usamos labels por quadro; a coluna organizationId fica pra
+// futuro "labels globais".
+model Label {
+  id             String  @id @default(cuid())
+  organizationId String
+  boardId        String?
+  name           String
+  color          String  // hex, ex: "#EF4444"
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  board        Board?       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards        CardLabel[]
+
+  @@index([organizationId])
+  @@index([boardId])
+}
+
+model CardLabel {
+  cardId  String
+  labelId String
+  card  Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, labelId])
+}
+
+// ==================== Checklists ====================
+
+model Checklist {
+  id        String   @id @default(cuid())
+  cardId    String
+  title     String
+  position  Float
+  createdAt DateTime @default(now())
+
+  card  Card            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  items ChecklistItem[]
+
+  @@index([cardId])
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  text        String
+  isDone      Boolean   @default(false)
+  position    Float
+  dueDate     DateTime?
+  assigneeId  String?
+  doneAt      DateTime?
+  doneById    String?
+
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId, position])
+}
+
+// ==================== Attachments ====================
+
+model Attachment {
+  id          String         @id @default(cuid())
+  cardId      String
+  uploaderId  String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String
+  kind        AttachmentKind @default(FILE)
+  externalUrl String?
+  createdAt   DateTime       @default(now())
+
+  card     Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  uploader User @relation(fields: [uploaderId], references: [id])
+
+  @@index([cardId])
+}
+
+// ==================== Comments ====================
+
+model Comment {
+  id        String    @id @default(cuid())
+  cardId    String
+  authorId  String
+  body      Json      // Tiptap JSON (ou texto simples no MVP)
+  mentions  String[]  // userIds mencionados (denormalizado pra notificação)
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  card   Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([cardId, createdAt])
+}
+
+// ==================== Activity (audit log) ====================
+
+model Activity {
+  id             String       @id @default(cuid())
+  organizationId String
+  boardId        String?
+  cardId         String?
+  actorId        String?
+  type           ActivityType
+  payload        Json
+  createdAt      DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  card         Card?        @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  actor        User?        @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([cardId, createdAt])
+  @@index([boardId, createdAt])
+}
+
+// ==================== Notifications ====================
+
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  type           NotificationType
+  title          String
+  body           String?
+  entityType     String?
+  entityId       String?
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
 }
