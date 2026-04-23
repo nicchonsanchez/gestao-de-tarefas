@@ -1,0 +1,124 @@
+// KTask — Prisma schema
+//
+// Fase 0: modelos fundacionais (User, Organization, Membership, Invitation, Session).
+// Próximas fases adicionam Board, List, Card, etc. conforme `tarefas-md/03-entidades-e-dominio.md`.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------- Enums --------------------
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  GESTOR
+  MEMBER
+  GUEST
+}
+
+enum OrgPlan {
+  INTERNAL
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+// -------------------- Models --------------------
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  emailVerifiedAt  DateTime?
+  passwordHash     String
+  name             String
+  avatarUrl        String?
+  locale           String    @default("pt-BR")
+  timezone         String    @default("America/Sao_Paulo")
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  memberships      Membership[]
+  sessions         Session[]
+  invitationsSent  Invitation[] @relation("InvitationCreator")
+
+  @@index([email])
+}
+
+model Organization {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  logoUrl   String?
+  timezone  String    @default("America/Sao_Paulo")
+  locale    String    @default("pt-BR")
+  plan      OrgPlan   @default(INTERNAL)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  memberships Membership[]
+  invitations Invitation[]
+
+  @@index([slug])
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           OrgRole  @default(MEMBER)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model Invitation {
+  id             String    @id @default(cuid())
+  organizationId String
+  email          String
+  role           OrgRole   @default(MEMBER)
+  token          String    @unique
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitationCreator", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}

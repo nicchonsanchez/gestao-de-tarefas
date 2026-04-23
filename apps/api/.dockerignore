@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/.env.local
+**/.env.*.local
+**/.git
+**/.github
+**/tarefas-md
+**/docs
+**/README.md
+**/*.log
+**/*.md
+!**/prisma/**/*.sql
+!**/package.json

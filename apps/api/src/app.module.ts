@@ -1,0 +1,59 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
+
+import { env } from './config/env';
+import { PrismaModule } from './common/prisma/prisma.module';
+import { HealthModule } from './modules/health/health.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: env.LOG_LEVEL,
+        redact: ['req.headers.authorization', 'req.headers.cookie'],
+        transport:
+          env.NODE_ENV === 'development'
+            ? {
+                target: 'pino-pretty',
+                options: {
+                  colorize: true,
+                  singleLine: true,
+                  translateTime: 'SYS:HH:MM:ss.l',
+                  ignore: 'pid,hostname,req,res',
+                  messageFormat: '{context} · {msg}',
+                },
+              }
+            : undefined,
+        serializers: {
+          req: (req: { id: string; method: string; url: string }) => ({
+            id: req.id,
+            method: req.method,
+            url: req.url,
+          }),
+          res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
+        },
+      },
+    }),
+    EventEmitterModule.forRoot({
+      wildcard: true,
+      delimiter: '.',
+      maxListeners: 20,
+    }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 100,
+      },
+    ]),
+    PrismaModule,
+    HealthModule,
+  ],
+})
+export class AppModule {}

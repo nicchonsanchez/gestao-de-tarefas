@@ -1,0 +1,13 @@
+{
+  "name": "@ktask/config-tsconfig",
+  "version": "0.0.1",
+  "private": true,
+  "license": "UNLICENSED",
+  "files": [
+    "base.json",
+    "nestjs.json",
+    "nextjs.json",
+    "node-lib.json",
+    "react-lib.json"
+  ]
+}

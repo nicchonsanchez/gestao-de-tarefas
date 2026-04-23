@@ -77,26 +77,29 @@ Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` concluído · `[-]` descar
 
 Bootstrap do monorepo e infra local.
 
-- [ ] Estrutura de pastas do monorepo (`apps/web`, `apps/api`, `packages/*`)
-- [ ] `package.json` raiz + `pnpm-workspace.yaml` + `turbo.json`
-- [ ] Configs compartilhadas (`packages/config-eslint`, `packages/config-tsconfig`)
-- [ ] `apps/api` — NestJS com hello world, health check, logger Pino, config module
-- [ ] `apps/web` — Next.js 15 App Router com Tailwind + tokens de design (07) + tema light/dark
-- [ ] `packages/contracts` — esboço com Zod schemas compartilhados
-- [ ] `packages/ui` — base shadcn + wrappers KTask (Button, Card, Input, Dialog)
-- [ ] `infra/docker-compose.yml` (Postgres, Redis, MinIO, Mailpit)
-- [ ] Prisma inicial com models `User`, `Organization`, `Membership`
-- [ ] Primeira migration + seed (1 Org, 1 OWNER)
-- [ ] GitHub Actions CI: lint, typecheck, test, build
-- [ ] Husky + lint-staged
-- [ ] `.env.example` completo
-- [ ] README dev (como rodar local)
+- [x] Estrutura de pastas do monorepo (`apps/web`, `apps/api`, `packages/*`)
+- [x] `package.json` raiz + `pnpm-workspace.yaml` + `turbo.json`
+- [x] Configs compartilhadas (`packages/config-eslint`, `packages/config-tsconfig`)
+- [x] `apps/api` — NestJS 11 com health check, logger Pino, config module, Prisma
+- [x] `apps/web` — Next.js 15 App Router com Tailwind + tokens de design (07) + tema light/dark + toggle
+- [x] `packages/contracts` — Zod schemas compartilhados (auth, users, organizations, roles com teto de rank)
+- [x] `packages/ui` — base shadcn + wrappers KTask (Button, Card, Input, Dialog, Label, Badge)
+- [x] `infra/docker-compose.yml` (Postgres 16 na porta **5433**, Redis 7, MinIO, Mailpit)
+- [x] Prisma inicial com models `User`, `Organization`, `Membership`, `Invitation`, `Session`
+- [x] Primeira migration + seed (Org "Kharis" + OWNER admin@kharis.local)
+- [x] GitHub Actions CI: lint, typecheck, test, build
+- [x] Husky + lint-staged
+- [x] `.env.example` completo (raiz + apps/api + apps/web)
+- [x] Dockerfile multi-stage pra App Runner
+- [x] README dev com instruções completas
+- [x] Validação live: `/healthz` e `/readyz` retornando 200 com DB check verde
 
 ## Fase 1 — MVP
 
 Ver detalhes em `06-roadmap-mvp.md`.
 
 ### Auth
+
 - [ ] Login e-mail/senha com argon2id
 - [ ] Refresh token httpOnly + rotação
 - [ ] Logout + logout all sessions
@@ -105,6 +108,7 @@ Ver detalhes em `06-roadmap-mvp.md`.
 - [ ] Guards: JwtGuard, OrgGuard, BoardRoleGuard (com bypass OWNER/ADMIN/GESTOR)
 
 ### Organização
+
 - [ ] CRUD Organization (1 por instalação no MVP interno)
 - [ ] Convite por e-mail (Invitation com token, 7d)
 - [ ] Aceitar convite e criar conta
@@ -112,6 +116,7 @@ Ver detalhes em `06-roadmap-mvp.md`.
 - [ ] Config Org (nome, logo, timezone, idioma)
 
 ### Quadros / Listas / Cards
+
 - [ ] Criar/listar/arquivar quadro; membros com papéis
 - [ ] Listas com reordenação drag & drop
 - [ ] Cards: criar rápido, editar, mover, duplicar, arquivar
@@ -121,19 +126,22 @@ Ver detalhes em `06-roadmap-mvp.md`.
 - [ ] Anexos com URL pré-assinada S3/MinIO
 
 ### Interação
+
 - [ ] Comentários com menções `@`
 - [ ] Notificações in-app (sininho com contador + lista)
 - [ ] Busca global (`Ctrl+K`)
 - [ ] Activity log por card e quadro
 
 ### Real-time
+
 - [ ] Gateway Socket.IO com JWT no handshake
 - [ ] Canais `board:{id}`, `user:{id}`
 - [ ] Presença no quadro (avatares online)
-- [ ] Eventos: card.created/moved/updated, list.*, comment.*, notification.*
+- [ ] Eventos: card.created/moved/updated, list._, comment._, notification.\*
 - [ ] Reconexão com re-sync (`GET /boards/{id}?since={ts}`)
 
 ### Qualidade
+
 - [ ] Cobertura de testes ≥ 60% backend
 - [ ] Testes e2e (Playwright): F-01, F-03, F-04, F-08b
 - [ ] Design tokens aplicados, light/dark funcional

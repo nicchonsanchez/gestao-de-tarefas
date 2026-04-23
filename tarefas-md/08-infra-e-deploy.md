@@ -42,11 +42,11 @@ Decisões de hospedagem, domínios, secrets, CI/CD e ambientes.
 
 ## 2. Ambientes
 
-| Ambiente | URL frontend | URL API | Banco |
-|---|---|---|---|
-| **Local** | `http://localhost:3000` | `http://localhost:4000` | Docker Compose (Postgres + Redis + MinIO + Mailpit) |
-| **Staging** | `ktask-staging.agenciakharis.com.br` | `api-ktask-staging.agenciakharis.com.br` | RDS pequeno (db.t4g.micro) + ElastiCache t4g.micro |
-| **Produção** | `ktask.agenciakharis.com.br` | `api.ktask.agenciakharis.com.br` | RDS (db.t4g.small, Single-AZ inicialmente) + ElastiCache t4g.micro |
+| Ambiente     | URL frontend                         | URL API                                  | Banco                                                              |
+| ------------ | ------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------ |
+| **Local**    | `http://localhost:3000`              | `http://localhost:4000`                  | Docker Compose (Postgres + Redis + MinIO + Mailpit)                |
+| **Staging**  | `ktask-staging.agenciakharis.com.br` | `api-ktask-staging.agenciakharis.com.br` | RDS pequeno (db.t4g.micro) + ElastiCache t4g.micro                 |
+| **Produção** | `ktask.agenciakharis.com.br`         | `api.ktask.agenciakharis.com.br`         | RDS (db.t4g.small, Single-AZ inicialmente) + ElastiCache t4g.micro |
 
 Staging vive o tempo todo e recebe merge automático de `main`. Prod recebe deploy via tag (`v1.2.3`) ou aprovação manual.
 
@@ -68,21 +68,22 @@ Staging vive o tempo todo e recebe merge automático de `main`. Prod recebe depl
 
 **Serviços**:
 
-| Serviço | Uso | Custo mensal estimado (MVP) |
-|---|---|---|
-| **App Runner** (API) | NestJS REST + Socket.IO | ~$25 (2 vCPU, 2GB, 1 instância) |
-| **App Runner** (Worker) | BullMQ workers (automações, e-mail, WhatsApp) | ~$15 (0.5 vCPU, 1GB) |
-| **RDS PostgreSQL 16** | Banco | ~$15 (db.t4g.micro, 20GB gp3) |
-| **ElastiCache Redis 7** | Filas + WS adapter + cache | ~$12 (cache.t4g.micro) |
-| **S3** | Anexos | < $5 (primeiros GB) |
-| **SES** | E-mail transacional | < $1 (62k/mês grátis) |
-| **CloudWatch Logs** | Logs centralizados | ~$5 |
-| **SSM Parameter Store** | Secrets | Grátis (tier standard) |
-| **Route 53** (opcional) | DNS | $0.50/mês por zona |
-| **ACM** | Certificados SSL | Grátis |
-| **Total MVP** | | **~$80/mês** |
+| Serviço                 | Uso                                           | Custo mensal estimado (MVP)     |
+| ----------------------- | --------------------------------------------- | ------------------------------- |
+| **App Runner** (API)    | NestJS REST + Socket.IO                       | ~$25 (2 vCPU, 2GB, 1 instância) |
+| **App Runner** (Worker) | BullMQ workers (automações, e-mail, WhatsApp) | ~$15 (0.5 vCPU, 1GB)            |
+| **RDS PostgreSQL 16**   | Banco                                         | ~$15 (db.t4g.micro, 20GB gp3)   |
+| **ElastiCache Redis 7** | Filas + WS adapter + cache                    | ~$12 (cache.t4g.micro)          |
+| **S3**                  | Anexos                                        | < $5 (primeiros GB)             |
+| **SES**                 | E-mail transacional                           | < $1 (62k/mês grátis)           |
+| **CloudWatch Logs**     | Logs centralizados                            | ~$5                             |
+| **SSM Parameter Store** | Secrets                                       | Grátis (tier standard)          |
+| **Route 53** (opcional) | DNS                                           | $0.50/mês por zona              |
+| **ACM**                 | Certificados SSL                              | Grátis                          |
+| **Total MVP**           |                                               | **~$80/mês**                    |
 
 **Justificativa App Runner vs ECS Fargate**:
+
 - App Runner: push de container, ele cuida de scaling, SSL, health check. Custo menor pra baixa escala. Perfeito para uso interno.
 - ECS Fargate: mais controle (VPC, ALB, regras finas), mas mais config. Vale se/quando escalar muito.
 - **Decisão**: App Runner pra começar; migrar pra Fargate só se o custo ou limite do App Runner apertar.
@@ -92,12 +93,14 @@ Staging vive o tempo todo e recebe merge automático de `main`. Prod recebe depl
 **Opção recomendada**: **Cloudflare** (mesmo com domínio `.com.br` no Registro.br, basta apontar NS do subdomínio `ktask.agenciakharis.com.br` para Cloudflare).
 
 Vantagens:
+
 - DNS rápido e de borda.
 - WAF e rate limit grátis no plano Free.
 - Analytics de tráfego.
 - Pode ser usado como proxy ou DNS-only.
 
 Configuração:
+
 - `ktask.agenciakharis.com.br` → CNAME para Vercel (`cname.vercel-dns.com`)
 - `api.ktask.agenciakharis.com.br` → CNAME para o App Runner (`xxx.awsapprunner.com`)
 - Cloudflare DNS-only (cinza) no subdomínio da API para **não** proxy-ar WebSocket (proxy Cloudflare pode bloquear ou timeoutar WS longos no plano free).
@@ -120,17 +123,17 @@ Configuração:
 
 ### Arquivos no repo
 
-| Arquivo | Propósito | Commitado? |
-|---|---|---|
-| `.env.example` | Template com todas as variáveis (valores fake) | ✅ Sim |
-| `apps/api/.env.local` | Valores reais do dev local | ❌ Não (gitignored) |
-| `apps/web/.env.local` | Idem front | ❌ Não |
+| Arquivo               | Propósito                                      | Commitado?          |
+| --------------------- | ---------------------------------------------- | ------------------- |
+| `.env.example`        | Template com todas as variáveis (valores fake) | ✅ Sim              |
+| `apps/api/.env.local` | Valores reais do dev local                     | ❌ Não (gitignored) |
+| `apps/web/.env.local` | Idem front                                     | ❌ Não              |
 
 ### Variáveis principais (`.env.example`)
 
 ```dotenv
 # API — core
-DATABASE_URL=postgresql://dev:dev@localhost:5432/ktask
+DATABASE_URL=postgresql://dev:dev@localhost:5433/ktask
 REDIS_URL=redis://localhost:6379
 PORT=4000
 NODE_ENV=development
@@ -203,6 +206,7 @@ Para o **dev local** (enquanto só existe uma Evolution da Kharis), tudo bem com
 ### GitHub Actions
 
 **`.github/workflows/ci.yml`** (em toda PR):
+
 1. Lint (`pnpm lint`)
 2. Typecheck (`pnpm typecheck`)
 3. Tests unit (`pnpm test`)
@@ -210,11 +214,13 @@ Para o **dev local** (enquanto só existe uma Evolution da Kharis), tudo bem com
 5. Tests e2e (Playwright, só em PRs para `main`)
 
 **`.github/workflows/deploy-api.yml`** (em merge para `main`):
+
 1. Build imagem Docker da API + Worker (duas tags).
 2. Push pra **ECR** (Elastic Container Registry).
 3. `aws apprunner start-deployment` em cada serviço App Runner.
 
 **Vercel** faz deploy sozinho:
+
 - Preview em cada PR.
 - Production em merge pra `main` → aponta pra `ktask.agenciakharis.com.br`.
 - Staging → branch `staging` aponta pra `ktask-staging.agenciakharis.com.br`.
@@ -234,24 +240,29 @@ Para o **dev local** (enquanto só existe uma Evolution da Kharis), tudo bem com
 ## 6. Observabilidade
 
 ### Logs
+
 - **Aplicação** (Nest + Next): Pino → stdout → CloudWatch (capturado automaticamente pelo App Runner).
 - **Formato**: JSON estruturado com `requestId`, `userId`, `orgId`, `level`, `msg`.
 - **Retenção**: 30 dias padrão; 90 dias em logs de auditoria (Activity).
 
 ### Métricas
+
 - App Runner expõe métricas padrão (CPU, mem, req count, 5xx). Suficiente pro MVP.
 - **Extra** (opcional na v1): endpoint `/metrics` no NestJS (`prom-client`) e Prometheus externo (self-hosted em VPS simples ou Grafana Cloud Free).
 
 ### Traces
+
 - **OpenTelemetry** no Nest + Next, export pra **Sentry** (que aceita traces) ou **Honeycomb** trial.
 - Implementar só quando houver problema de performance real — não é prioridade MVP.
 
 ### Erros
+
 - **Sentry** (free tier: 5k erros/mês, suficiente).
 - Source maps do Next e do Nest upload no deploy.
 - Release tagging igual ao commit SHA.
 
 ### Alertas (configurar na v1)
+
 - API 5xx > 1% em 5min → Slack/e-mail
 - Latência p99 > 1s em 10min → Slack
 - Fila BullMQ com > 1000 jobs pendentes → Slack
@@ -274,13 +285,13 @@ Para o **dev local** (enquanto só existe uma Evolution da Kharis), tudo bem com
 
 ## 9. Custos esperados por fase
 
-| Fase | Infra mensal aproximada | Observação |
-|---|---|---|
-| **Dev local** | $0 | Docker Compose na máquina do dev |
-| **MVP** (1 Org, <10 users) | ~$80 | 1x App Runner API + 1x Worker + RDS micro + Redis micro + S3 |
-| **v1** (mais tráfego de automação) | ~$150 | App Runner escala, logs crescem |
-| **v1.5 interno** (Kharis toda usando) | ~$200-300 | RDS vai pra `small`, Redis mantém |
-| **Se virar SaaS** | depende | Outra conversa, sem data |
+| Fase                                  | Infra mensal aproximada | Observação                                                   |
+| ------------------------------------- | ----------------------- | ------------------------------------------------------------ |
+| **Dev local**                         | $0                      | Docker Compose na máquina do dev                             |
+| **MVP** (1 Org, <10 users)            | ~$80                    | 1x App Runner API + 1x Worker + RDS micro + Redis micro + S3 |
+| **v1** (mais tráfego de automação)    | ~$150                   | App Runner escala, logs crescem                              |
+| **v1.5 interno** (Kharis toda usando) | ~$200-300               | RDS vai pra `small`, Redis mantém                            |
+| **Se virar SaaS**                     | depende                 | Outra conversa, sem data                                     |
 
 ## 10. Checklist de provisionamento (pré-MVP)
 

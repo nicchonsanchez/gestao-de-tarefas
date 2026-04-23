@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * KTask Design Tokens
+ * Formato HSL sem vírgula para suportar alpha via Tailwind <alpha-value>.
+ * Referência completa em `tarefas-md/07-design-system.md`.
+ */
+@layer base {
+  :root {
+    /* 🌞 Light */
+    --bg: 0 0% 100%;
+    --bg-subtle: 240 5% 98%;
+    --bg-muted: 240 5% 96%;
+    --bg-emphasis: 240 5% 90%;
+
+    --border: 240 6% 90%;
+    --border-strong: 240 5% 84%;
+
+    --fg: 240 10% 5%;
+    --fg-muted: 240 4% 46%;
+    --fg-subtle: 240 5% 65%;
+
+    --primary: 262 83% 50%;          /* #6D28D9 violet-700 */
+    --primary-hover: 263 69% 42%;    /* #5B21B6 violet-800 */
+    --primary-fg: 0 0% 100%;
+    --primary-subtle: 250 100% 98%;  /* violet-50 */
+
+    --accent: 161 79% 55%;           /* #2EE8B8 */
+    --accent-hover: 160 84% 39%;     /* #10B981 */
+
+    --warning: 38 92% 50%;           /* #F59E0B */
+    --warning-subtle: 48 96% 89%;
+
+    --danger: 0 72% 51%;             /* #DC2626 */
+    --danger-subtle: 0 93% 94%;
+
+    --info: 217 91% 60%;             /* #2563EB */
+
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  .dark {
+    /* 🌙 Dark */
+    --bg: 240 6% 4%;
+    --bg-subtle: 240 6% 8%;
+    --bg-muted: 240 6% 10%;
+    --bg-emphasis: 240 5% 16%;
+
+    --border: 240 5% 16%;
+    --border-strong: 240 4% 26%;
+
+    --fg: 0 0% 98%;
+    --fg-muted: 240 4% 65%;
+    --fg-subtle: 240 4% 46%;
+
+    --primary: 262 83% 58%;          /* #7C3AED violet-600 (mais claro no dark) */
+    --primary-hover: 258 90% 66%;    /* #8B5CF6 violet-500 */
+    --primary-fg: 0 0% 100%;
+    --primary-subtle: 263 70% 23%;   /* violet-900-ish pra badges */
+
+    --accent: 161 79% 55%;
+    --accent-hover: 160 84% 39%;
+
+    --warning: 43 96% 56%;           /* amber-400 — melhor contraste no dark */
+    --warning-subtle: 20 60% 14%;
+
+    --danger: 0 84% 60%;             /* red-500 */
+    --danger-subtle: 0 62% 15%;
+
+    --info: 217 91% 60%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: hsl(var(--bg));
+    color: hsl(var(--fg));
+    font-family: var(--font-sans);
+    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+  }
+
+  /* Focus ring consistente em tudo tabulável */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Scrollbar sutil */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--bg-emphasis));
+    border-radius: 5px;
+    border: 2px solid hsl(var(--bg));
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border-strong));
+  }
+
+  /* Respeitar preferência de movimento reduzido */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
