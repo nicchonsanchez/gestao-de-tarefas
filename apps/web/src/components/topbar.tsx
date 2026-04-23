@@ -12,6 +12,7 @@ import { logout } from '@/lib/auth';
 const NAV = [
   { href: '/', label: 'Início' },
   { href: '/quadros', label: 'Quadros' },
+  { href: '/configuracoes/membros', label: 'Membros' },
 ];
 
 export function Topbar() {
