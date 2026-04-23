@@ -8,8 +8,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { Public } from '@/modules/auth/decorators/public.decorator';
 
 @ApiTags('health')
+@Public()
 @Controller({ version: VERSION_NEUTRAL })
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
