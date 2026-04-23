@@ -14,7 +14,8 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "node scripts/dev.mjs",
+    "dev:web-api": "turbo run dev --parallel --filter=@ktask/web --filter=@ktask/api",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -23,10 +24,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\" --ignore-path .gitignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\" --ignore-path .gitignore",
     "clean": "turbo run clean && rm -rf node_modules",
-    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d --wait",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "db:migrate": "pnpm --filter @ktask/api prisma:migrate",
+    "db:migrate:deploy": "pnpm --filter @ktask/api prisma:migrate:deploy",
     "db:seed": "pnpm --filter @ktask/api prisma:seed",
     "db:studio": "pnpm --filter @ktask/api prisma:studio",
     "prepare": "husky"

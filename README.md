@@ -20,22 +20,23 @@ Uso interno em primeira fase, com arquitetura preparada para virar SaaS sem refa
 # 1. Instalar dependências
 pnpm install
 
-# 2. Subir infra local (Postgres + Redis + MinIO + Mailpit)
-pnpm infra:up
+# 2. Popular seed (roda automaticamente o DB + migrations antes)
+pnpm dev          # sobe tudo; pode parar (Ctrl+C) após ver web+api prontos
+pnpm db:seed      # em outro terminal, cria Org "Kharis" + OWNER admin@kharis.local
 
-# 3. Copiar env templates
-cp .env.example .env.local
-cp apps/api/.env.example apps/api/.env.local
-cp apps/web/.env.example apps/web/.env.local
-
-# 4. Gerar Prisma client + aplicar migrations + seed
-pnpm --filter @ktask/api prisma:generate
-pnpm db:migrate
-pnpm db:seed
-
-# 5. Rodar tudo em paralelo (web + api)
+# 3. Rodar em dev (reuso de infra)
 pnpm dev
 ```
+
+**`pnpm dev` faz automaticamente**:
+
+1. Checa Docker Desktop rodando
+2. Sobe `infra/docker-compose.yml` com `--wait` (espera Postgres/Redis/MinIO/Mailpit healthy)
+3. Cria `apps/api/.env` e `apps/web/.env.local` a partir dos `.env.example` se ainda não existirem
+4. Aplica migrations pendentes (`prisma migrate deploy`, idempotente)
+5. Inicia `apps/api` (NestJS watch) + `apps/web` (Next.js turbopack) em paralelo
+
+Ctrl+C encerra web+api; containers Docker continuam rodando (próximo start é rápido). Use `pnpm infra:down` pra parar tudo.
 
 URLs locais:
 
