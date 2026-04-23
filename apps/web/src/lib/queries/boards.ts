@@ -37,6 +37,7 @@ export interface ListWithCards {
 
 export interface BoardDetail {
   id: string;
+  organizationId: string;
   name: string;
   description: string | null;
   color: string | null;

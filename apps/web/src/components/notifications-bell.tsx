@@ -12,6 +12,7 @@ import {
   type NotificationItem,
 } from '@/lib/queries/notifications';
 import { formatRelativeTime } from '@/lib/prose';
+import { useRealtimeNotifications } from '@/hooks/use-realtime-board';
 
 const ICONS: Record<
   NotificationItem['type'],
@@ -29,6 +30,8 @@ const ICONS: Record<
 export function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  useRealtimeNotifications();
 
   const unreadQuery = useQuery(notificationsQueries.unreadCount());
   const listQuery = useQuery({

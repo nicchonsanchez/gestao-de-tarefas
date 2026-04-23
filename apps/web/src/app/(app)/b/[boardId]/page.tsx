@@ -28,6 +28,7 @@ import { CardItem, CardOverlay } from '@/components/board/card-item';
 import { ListColumn } from '@/components/board/list-column';
 import { CardModal } from '@/components/board/card-modal';
 import { ApiError } from '@/lib/api-client';
+import { useRealtimeBoard } from '@/hooks/use-realtime-board';
 
 export default function BoardPage() {
   const params = useParams<{ boardId: string }>();
@@ -35,6 +36,11 @@ export default function BoardPage() {
   const boardQuery = useQuery(boardsQueries.detail(boardId));
   const queryClient = useQueryClient();
   const [activeCard, setActiveCard] = useState<CardListItem | null>(null);
+
+  useRealtimeBoard({
+    boardId,
+    organizationId: boardQuery.data?.organizationId ?? null,
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),

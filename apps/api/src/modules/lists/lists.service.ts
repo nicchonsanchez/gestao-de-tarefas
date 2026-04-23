@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { computeInsertPosition } from '@/common/util/position';
 import type { TenantContext } from '@/common/tenant/tenant.types';
 import { BoardAccessService } from '@/modules/boards/board-access.service';
+import { EVENT_NAMES } from '@/modules/realtime/events.types';
 
 interface CreateListInput {
   boardId: string;
@@ -29,6 +31,7 @@ export class ListsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: BoardAccessService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async create(userId: string, tenant: TenantContext, input: CreateListInput) {
@@ -60,6 +63,13 @@ export class ListsService {
       },
     });
 
+    this.events.emit(EVENT_NAMES.LIST_CREATED, {
+      boardId: input.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      listId: list.id,
+    });
+
     return list;
   }
 
@@ -80,6 +90,13 @@ export class ListsService {
         type: 'LIST_UPDATED',
         payload: { listId, input } as unknown as Prisma.InputJsonValue,
       },
+    });
+
+    this.events.emit(EVENT_NAMES.LIST_UPDATED, {
+      boardId: list.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      listId,
     });
 
     return updated;

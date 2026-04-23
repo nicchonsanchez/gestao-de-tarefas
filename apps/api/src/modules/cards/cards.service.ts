@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Priority, Prisma } from '@prisma/client';
 
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { computeInsertPosition } from '@/common/util/position';
 import type { TenantContext } from '@/common/tenant/tenant.types';
 import { BoardAccessService } from '@/modules/boards/board-access.service';
+import { EVENT_NAMES } from '@/modules/realtime/events.types';
 
 interface CreateCardInput {
   listId: string;
@@ -35,6 +37,7 @@ export class CardsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: BoardAccessService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async create(userId: string, tenant: TenantContext, input: CreateCardInput) {
@@ -73,6 +76,15 @@ export class CardsService {
         type: 'CARD_CREATED',
         payload: { cardId: card.id, title: card.title, listId: list.id },
       },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_CREATED, {
+      boardId: list.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+      listId: list.id,
+      title: card.title,
     });
 
     return card;
@@ -151,6 +163,13 @@ export class CardsService {
       },
     });
 
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId,
+    });
+
     return updated;
   }
 
@@ -191,6 +210,16 @@ export class CardsService {
       },
     });
 
+    this.events.emit(EVENT_NAMES.CARD_MOVED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId,
+      fromListId: card.listId,
+      toListId: input.toListId,
+      position,
+    });
+
     return updated;
   }
 
@@ -212,6 +241,13 @@ export class CardsService {
         type: 'CARD_ARCHIVED',
         payload: { cardId },
       },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_ARCHIVED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId,
     });
 
     return updated;

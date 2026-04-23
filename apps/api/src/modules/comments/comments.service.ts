@@ -4,10 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@/common/prisma/prisma.service';
 import type { TenantContext } from '@/common/tenant/tenant.types';
+import { EVENT_NAMES } from '@/modules/realtime/events.types';
 import { BoardAccessService } from '@/modules/boards/board-access.service';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 
@@ -43,6 +45,7 @@ export class CommentsService {
     private readonly prisma: PrismaService,
     private readonly access: BoardAccessService,
     private readonly notifications: NotificationsService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async create(userId: string, tenant: TenantContext, input: CreateCommentInput) {
@@ -108,6 +111,23 @@ export class CommentsService {
     ];
 
     await this.notifications.createMany(notifications);
+
+    // Eventos real-time: card.comment.added pro board + notification.created para cada destinatario
+    this.events.emit(EVENT_NAMES.COMMENT_ADDED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+      commentId: comment.id,
+    });
+
+    for (const n of notifications) {
+      this.events.emit(EVENT_NAMES.NOTIFICATION_CREATED, {
+        userId: n.userId,
+        organizationId: tenant.organizationId,
+        notificationId: '', // o gateway não precisa do id aqui; cliente faz refetch
+      });
+    }
 
     return comment;
   }
