@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
+import { QueryProvider } from '@/components/query-provider';
+import { SessionBootstrap } from '@/components/session-bootstrap';
 import '@/styles/globals.css';
 
 const inter = Inter({
@@ -33,7 +35,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={inter.variable} suppressHydrationWarning>
       <body className="bg-bg text-fg min-h-screen font-sans antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <QueryProvider>
+            <SessionBootstrap />
+            {children}
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

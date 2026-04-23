@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 const schema = z.object({
-  NEXT_PUBLIC_API_URL: z.string().url(),
-  NEXT_PUBLIC_WS_URL: z.string().url(),
+  NEXT_PUBLIC_API_URL: z.string().url().default('http://localhost:4000'),
+  NEXT_PUBLIC_WS_URL: z.string().url().default('ws://localhost:4000'),
   NEXT_PUBLIC_APP_NAME: z.string().default('KTask'),
 });
 
