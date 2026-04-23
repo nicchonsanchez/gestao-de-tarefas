@@ -1,0 +1,146 @@
+'use client';
+
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { AlertTriangle, Calendar, MessageSquare, CheckSquare, Paperclip } from 'lucide-react';
+import type { CardListItem } from '@/lib/queries/boards';
+
+const PRIORITY_COLOR: Record<CardListItem['priority'], string> = {
+  LOW: 'bg-bg-emphasis text-fg-muted',
+  MEDIUM: 'bg-info/15 text-info',
+  HIGH: 'bg-warning-subtle text-warning',
+  URGENT: 'bg-danger-subtle text-danger',
+};
+
+const PRIORITY_LABEL: Record<CardListItem['priority'], string> = {
+  LOW: 'Baixa',
+  MEDIUM: 'Média',
+  HIGH: 'Alta',
+  URGENT: 'Urgente',
+};
+
+export function CardItem({ card }: { card: CardListItem }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: card.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="bg-bg border-border hover:border-border-strong cursor-grab rounded-lg border p-3 text-left shadow-sm active:cursor-grabbing"
+    >
+      <CardInner card={card} />
+    </div>
+  );
+}
+
+export function CardOverlay({ card }: { card: CardListItem }) {
+  return (
+    <div className="bg-bg border-border cursor-grabbing rounded-lg border p-3 shadow-lg">
+      <CardInner card={card} />
+    </div>
+  );
+}
+
+function CardInner({ card }: { card: CardListItem }) {
+  const hasLabels = card.labels.length > 0;
+  const hasDue = !!card.dueDate;
+  const due = card.dueDate ? new Date(card.dueDate) : null;
+  const isOverdue = due ? due.getTime() < Date.now() : false;
+
+  return (
+    <div className="flex flex-col gap-2">
+      {hasLabels && (
+        <div className="-mx-3 -mt-3 flex h-1 overflow-hidden rounded-t-lg">
+          {card.labels.map((l) => (
+            <div
+              key={l.label.id}
+              className="flex-1"
+              style={{ backgroundColor: l.label.color }}
+              title={l.label.name}
+            />
+          ))}
+        </div>
+      )}
+
+      <p className="line-clamp-3 text-sm font-medium">{card.title}</p>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {card.priority !== 'MEDIUM' && (
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${PRIORITY_COLOR[card.priority]}`}
+          >
+            {card.priority === 'URGENT' && <AlertTriangle size={10} />}
+            {PRIORITY_LABEL[card.priority]}
+          </span>
+        )}
+
+        {hasDue && due && (
+          <span
+            className={`inline-flex items-center gap-1 ${
+              isOverdue ? 'text-danger' : 'text-fg-muted'
+            }`}
+          >
+            <Calendar size={12} />
+            {due.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+          </span>
+        )}
+
+        {card._count.comments > 0 && (
+          <span className="text-fg-muted inline-flex items-center gap-1">
+            <MessageSquare size={12} />
+            {card._count.comments}
+          </span>
+        )}
+
+        {card._count.checklists > 0 && (
+          <span className="text-fg-muted inline-flex items-center gap-1">
+            <CheckSquare size={12} />
+            {card._count.checklists}
+          </span>
+        )}
+
+        {card._count.attachments > 0 && (
+          <span className="text-fg-muted inline-flex items-center gap-1">
+            <Paperclip size={12} />
+            {card._count.attachments}
+          </span>
+        )}
+      </div>
+
+      {card.members.length > 0 && (
+        <div className="flex -space-x-1.5">
+          {card.members.slice(0, 4).map((m) => (
+            <div
+              key={m.user.id}
+              className="border-bg bg-primary-subtle text-primary flex size-6 items-center justify-center rounded-full border-2 text-[10px] font-semibold"
+              title={m.user.name}
+            >
+              {m.user.name
+                .split(' ')
+                .map((w) => w[0])
+                .filter(Boolean)
+                .slice(0, 2)
+                .join('')
+                .toUpperCase()}
+            </div>
+          ))}
+          {card.members.length > 4 && (
+            <div className="border-bg bg-bg-muted text-fg-muted flex size-6 items-center justify-center rounded-full border-2 text-[10px] font-semibold">
+              +{card.members.length - 4}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
