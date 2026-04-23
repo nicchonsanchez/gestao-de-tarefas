@@ -116,9 +116,11 @@ Antes de qualquer feature, montar o esqueleto.
 
 ---
 
-## Fase 4 — v2: SaaS (6–8 semanas)
+## Fase 4 — v2: SaaS (parkado, sem data)
 
-**Objetivo**: abrir para fora. Estes são os itens específicos de SaaS — o produto em si já deve estar maduro.
+⚠️ **Esta fase está parkada** por decisão explícita: foco em deixar o KTask funcional e útil pra Kharis primeiro. Só voltamos a esta seção quando o sistema estiver maduro em uso interno.
+
+**Objetivo (quando retomar)**: abrir para fora. Estes são os itens específicos de SaaS — o produto em si já deve estar maduro.
 
 ### Escopo (requisitos **2**)
 - **Cadastro público** + verificação de e-mail.

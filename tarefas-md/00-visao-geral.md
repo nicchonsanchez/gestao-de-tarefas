@@ -6,7 +6,7 @@
 ## Objetivo
 Plataforma interna de gestão de tarefas e fluxos de trabalho para as operações da empresa, inspirada em **Ummense** (núcleo funcional: automações, SLAs, formulários, time tracking) e **Trello** (DNA de UX: Kanban fluido, drag & drop, edição rápida, colaboração em tempo real).
 
-Após maturar em uso interno, o sistema será evoluído para **SaaS multi-empresa**. Por isso, a arquitetura é **multi-tenant desde o dia zero** — `organizationId` escopa todas as entidades e queries.
+**Uso interno é a prioridade agora**. SaaS multi-empresa é um horizonte possível, sem data e sem compromisso — não gastamos energia em features puramente comerciais (billing, landing, cadastro público) até o sistema estar sólido internamente. A arquitetura é **multi-tenant desde o dia zero** (`organizationId` em tudo) porque o custo é baixo e evita refactor futuro.
 
 ## Problema que resolve
 Equipes da empresa hoje usam (ou usariam) ferramentas terceiras (Trello, Ummense, planilhas) com limitações:
