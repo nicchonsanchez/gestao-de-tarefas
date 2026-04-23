@@ -14,6 +14,8 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { BoardsModule } from './modules/boards/boards.module';
 import { ListsModule } from './modules/lists/lists.module';
 import { CardsModule } from './modules/cards/cards.module';
+import { CommentsModule } from './modules/comments/comments.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -67,6 +69,8 @@ import { CardsModule } from './modules/cards/cards.module';
     BoardsModule,
     ListsModule,
     CardsModule,
+    CommentsModule,
+    NotificationsModule,
     HealthModule,
   ],
 })

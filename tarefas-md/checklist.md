@@ -98,39 +98,64 @@ Bootstrap do monorepo e infra local.
 
 Ver detalhes em `06-roadmap-mvp.md`.
 
-### Auth
+### Auth ✅
 
-- [ ] Login e-mail/senha com argon2id
-- [ ] Refresh token httpOnly + rotação
-- [ ] Logout + logout all sessions
+- [x] Login e-mail/senha com argon2id
+- [x] Refresh token httpOnly + rotação
+- [x] Logout + logout all sessions
 - [ ] Recuperação de senha por e-mail
 - [ ] Bloqueio após 10 tentativas (IP + conta)
-- [ ] Guards: JwtGuard, OrgGuard, BoardRoleGuard (com bypass OWNER/ADMIN/GESTOR)
+- [x] Guards: JwtAuthGuard global, TenantGuard por controller, BoardAccessService
+- [x] Testes unitários AuthService (12/12)
+- [x] Validado live (login/refresh/logout, /me)
 
-### Organização
+### Organização ✅
 
-- [ ] CRUD Organization (1 por instalação no MVP interno)
-- [ ] Convite por e-mail (Invitation com token, 7d)
-- [ ] Aceitar convite e criar conta
-- [ ] Gerenciar membros (listar/remover/alterar papel com teto por rank)
-- [ ] Config Org (nome, logo, timezone, idioma)
+- [x] CRUD Organization (getCurrent, update)
+- [x] Convite por e-mail (Invitation com token hash, 7d TTL)
+- [x] Aceitar convite vinculado ao user autenticado
+- [x] Gerenciar membros (listar, alterar papel com teto por rank, remover)
+- [x] 13 testes unitários cobrindo regras de rank
+- [x] Validado live
 
-### Quadros / Listas / Cards
+### Quadros / Listas / Cards ✅ core
 
-- [ ] Criar/listar/arquivar quadro; membros com papéis
-- [ ] Listas com reordenação drag & drop
-- [ ] Cards: criar rápido, editar, mover, duplicar, arquivar
-- [ ] Prioridade, due date, descrição (editor simples), capa
-- [ ] Labels (CRUD + aplicar)
-- [ ] Checklists
+- [x] Criar/listar/arquivar/restaurar quadro; 3 listas default
+- [x] BoardMember ADMIN implícito pro criador
+- [x] Visibility PRIVATE/ORGANIZATION
+- [x] Listas com reordenação (move com afterListId)
+- [x] Cards: criar rápido, editar, mover entre listas, arquivar/restaurar
+- [x] Prioridade, dueDate, startDate, estimateMinutes
+- [x] Descrição JSON (ProseMirror-ready, editor simples no MVP)
+- [x] Atribuir/remover membros
+- [x] Adicionar/remover labels
+- [ ] Labels CRUD (service criado, falta controller de gerenciamento)
+- [ ] Checklists CRUD
 - [ ] Anexos com URL pré-assinada S3/MinIO
+- [ ] Capa de card
+- [ ] Duplicar card
+- [x] Activity log em todas operações (BOARD_CREATED, CARD_MOVED, etc)
+
+### Web UI ⏳ em andamento
+
+- [x] Tela de login com react-hook-form + Zod
+- [x] Layout autenticado com Topbar (logo, theme toggle, avatar, logout)
+- [x] RequireAuth client guard
+- [x] Home dashboard (Org atual, papel, membros)
+- [x] API client com auto-refresh 401
+- [x] Zustand store pra session + TanStack Query
+- [ ] Lista de quadros
+- [ ] Tela do quadro (Kanban com dnd-kit)
+- [ ] Modal de card
+- [ ] Formulário de convite de membro
+- [ ] Tela de "aceitar convite"
 
 ### Interação
 
 - [ ] Comentários com menções `@`
 - [ ] Notificações in-app (sininho com contador + lista)
 - [ ] Busca global (`Ctrl+K`)
-- [ ] Activity log por card e quadro
+- [x] Activity log por card (30 últimas em GET /cards/:id)
 
 ### Real-time
 
