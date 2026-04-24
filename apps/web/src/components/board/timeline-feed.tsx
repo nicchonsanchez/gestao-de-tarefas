@@ -17,6 +17,7 @@ import { formatRelativeTime, proseToPlainText } from '@/lib/prose';
 import { activityLabel, activityDetail } from '@/lib/activity-format';
 import { UserAvatar } from '@/components/user-avatar';
 import { useAuthStore } from '@/stores/auth-store';
+import { MentionTextarea } from './mention-textarea';
 
 type TabKey = 'all' | 'comments' | 'mine' | 'records';
 
@@ -94,18 +95,14 @@ export function TimelineFeed({
         }}
         className="flex flex-col gap-2 pb-3"
       >
-        <textarea
+        <MentionTextarea
+          value={text}
+          onChange={setText}
+          onSubmit={() => {
+            if (text.trim().length > 0) createMut.mutate();
+          }}
           rows={3}
           placeholder="Escreva uma anotação neste card. Use @ para mencionar um usuário."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-              e.preventDefault();
-              (e.currentTarget.form as HTMLFormElement).requestSubmit();
-            }
-          }}
-          className="bg-bg border-border focus-visible:ring-primary w-full resize-none rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
         />
         <div className="flex items-center justify-between">
           <p className="text-fg-subtle text-[11px]">Ctrl/⌘ + Enter para enviar</p>
@@ -209,12 +206,14 @@ function CommentItem({
         </div>
         {editing ? (
           <div className="flex flex-col gap-2">
-            <textarea
+            <MentionTextarea
               autoFocus
               rows={3}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              className="bg-bg border-border focus-visible:ring-primary w-full resize-none rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
+              onChange={setDraft}
+              onSubmit={() => {
+                if (draft.trim().length > 0) updateMut.mutate();
+              }}
             />
             <div className="flex items-center gap-2">
               <Button
