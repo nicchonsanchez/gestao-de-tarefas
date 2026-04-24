@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Board, BoardVisibility, Prisma } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Board, BoardRole, BoardVisibility, Prisma } from '@prisma/client';
 import { ORG_ROLES_WITH_BOARD_BYPASS } from '@ktask/contracts';
 
 import { PrismaService } from '@/common/prisma/prisma.service';
@@ -251,5 +251,62 @@ export class BoardsService {
       where: { id: boardId },
       data: { isArchived: false },
     });
+  }
+
+  async addMember(
+    userId: string,
+    tenant: TenantContext,
+    boardId: string,
+    memberUserId: string,
+    role: BoardRole = 'EDITOR',
+  ) {
+    await this.access.assertAccess(userId, boardId, tenant, 'ADMIN');
+
+    const membership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: { userId: memberUserId, organizationId: tenant.organizationId },
+      },
+    });
+    if (!membership) {
+      throw new BadRequestException('Usuário não pertence à organização.');
+    }
+
+    await this.prisma.boardMember.upsert({
+      where: { boardId_userId: { boardId, userId: memberUserId } },
+      update: { role },
+      create: { boardId, userId: memberUserId, role },
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId,
+        actorId: userId,
+        type: 'MEMBER_JOINED_BOARD',
+        payload: { boardId, memberId: memberUserId, role },
+      },
+    });
+
+    return { ok: true };
+  }
+
+  async removeMember(userId: string, tenant: TenantContext, boardId: string, memberUserId: string) {
+    await this.access.assertAccess(userId, boardId, tenant, 'ADMIN');
+
+    await this.prisma.boardMember
+      .delete({ where: { boardId_userId: { boardId, userId: memberUserId } } })
+      .catch(() => undefined);
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId,
+        actorId: userId,
+        type: 'MEMBER_LEFT_BOARD',
+        payload: { boardId, memberId: memberUserId },
+      },
+    });
+
+    return { ok: true };
   }
 }

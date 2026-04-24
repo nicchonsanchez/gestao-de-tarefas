@@ -40,6 +40,7 @@ import { ListColumn, LIST_SORT_PREFIX } from '@/components/board/list-column';
 import { CardModal } from '@/components/board/card-modal';
 import { CompletedColumn, COMPLETED_DROPPABLE_ID } from '@/components/board/completed-column';
 import { AddColumnButton } from '@/components/board/add-column-button';
+import { BoardHeader } from '@/components/board/board-header';
 import { ApiError } from '@/lib/api-client';
 import { useRealtimeBoard } from '@/hooks/use-realtime-board';
 
@@ -277,10 +278,7 @@ export default function BoardPage() {
 
   return (
     <div className="bg-bg-subtle flex h-[calc(100vh-52px)] flex-col">
-      <div className="border-border bg-bg border-b px-6 py-3">
-        <h1 className="text-lg font-semibold">{board.name}</h1>
-        {board.description && <p className="text-fg-muted mt-0.5 text-xs">{board.description}</p>}
-      </div>
+      <BoardHeader board={board} />
 
       <DndContext
         sensors={sensors}

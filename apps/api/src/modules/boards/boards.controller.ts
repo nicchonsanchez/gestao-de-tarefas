@@ -20,8 +20,10 @@ import type { AuthenticatedRequestContext } from '@/modules/auth/auth.types';
 
 import { BoardsService } from './boards.service';
 import {
+  AddBoardMemberSchema,
   CreateBoardSchema,
   UpdateBoardSchema,
+  type AddBoardMemberRequest,
   type CreateBoardRequest,
   type UpdateBoardRequest,
 } from './dto/board.schemas';
@@ -103,5 +105,27 @@ export class BoardsController {
       limit: limit ? Number(limit) : undefined,
       cursor,
     });
+  }
+
+  @Post(':boardId/members')
+  @ApiOperation({ summary: 'Adicionar membro ao quadro' })
+  addMember(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('boardId') boardId: string,
+    @Body(new ZodValidationPipe(AddBoardMemberSchema)) body: AddBoardMemberRequest,
+  ) {
+    return this.boards.addMember(user.userId, org, boardId, body.userId, body.role ?? 'EDITOR');
+  }
+
+  @Delete(':boardId/members/:memberUserId')
+  @ApiOperation({ summary: 'Remover membro do quadro' })
+  removeMember(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('boardId') boardId: string,
+    @Param('memberUserId') memberUserId: string,
+  ) {
+    return this.boards.removeMember(user.userId, org, boardId, memberUserId);
   }
 }

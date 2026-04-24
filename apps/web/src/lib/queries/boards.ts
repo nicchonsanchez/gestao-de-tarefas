@@ -85,6 +85,39 @@ export function createBoard(input: { name: string; description?: string; color?:
   return api.post<BoardListItem>('/api/v1/boards', input);
 }
 
+export function updateBoard(
+  boardId: string,
+  input: {
+    name?: string;
+    description?: string | null;
+    color?: string | null;
+    icon?: string | null;
+    visibility?: 'PRIVATE' | 'ORGANIZATION';
+  },
+) {
+  return api.patch(`/api/v1/boards/${boardId}`, input);
+}
+
+export function archiveBoard(boardId: string) {
+  return api.delete(`/api/v1/boards/${boardId}`);
+}
+
+export function restoreBoard(boardId: string) {
+  return api.post(`/api/v1/boards/${boardId}/restore`, {});
+}
+
+export function addBoardMember(
+  boardId: string,
+  userId: string,
+  role: 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER' = 'EDITOR',
+) {
+  return api.post(`/api/v1/boards/${boardId}/members`, { userId, role });
+}
+
+export function removeBoardMember(boardId: string, userId: string) {
+  return api.delete(`/api/v1/boards/${boardId}/members/${userId}`);
+}
+
 export function moveCard(cardId: string, input: { toListId: string; afterCardId: string | null }) {
   return api.patch(`/api/v1/cards/${cardId}/move`, input);
 }

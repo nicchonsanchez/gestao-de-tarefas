@@ -15,3 +15,9 @@ export type CreateBoardRequest = z.infer<typeof CreateBoardSchema>;
 
 export const UpdateBoardSchema = CreateBoardSchema.partial();
 export type UpdateBoardRequest = z.infer<typeof UpdateBoardSchema>;
+
+export const AddBoardMemberSchema = z.object({
+  userId: z.string().cuid(),
+  role: z.enum(['ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER']).optional(),
+});
+export type AddBoardMemberRequest = z.infer<typeof AddBoardMemberSchema>;
