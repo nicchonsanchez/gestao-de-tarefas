@@ -28,18 +28,7 @@ export interface CardDetail {
     labelId: string;
     label: { id: string; name: string; color: string };
   }>;
-  checklists: Array<{
-    id: string;
-    title: string;
-    position: number;
-    items: Array<{
-      id: string;
-      text: string;
-      isDone: boolean;
-      position: number;
-      dueDate: string | null;
-    }>;
-  }>;
+  checklists: Checklist[];
   attachments: Array<{ id: string; fileName: string; mimeType: string; sizeBytes: number }>;
   comments: CommentNode[];
   activities: ActivityNode[];
@@ -111,6 +100,67 @@ export const orgMembersQuery = {
   queryKey: ['org-members'] as const,
   queryFn: () => api.get<OrgMember[]>('/api/v1/organizations/members'),
 };
+
+/* ----------------- Checklists ----------------- */
+
+export interface ChecklistItem {
+  id: string;
+  checklistId: string;
+  text: string;
+  isDone: boolean;
+  position: number;
+  dueDate: string | null;
+  assigneeId: string | null;
+  doneAt: string | null;
+  doneById: string | null;
+}
+
+export interface Checklist {
+  id: string;
+  cardId: string;
+  title: string;
+  position: number;
+  items: ChecklistItem[];
+}
+
+export function createChecklist(input: { cardId: string; title?: string }) {
+  return api.post<Checklist>('/api/v1/checklists', {
+    cardId: input.cardId,
+    title: input.title ?? 'Tarefas',
+  });
+}
+
+export function renameChecklist(checklistId: string, title: string) {
+  return api.patch(`/api/v1/checklists/${checklistId}`, { title });
+}
+
+export function removeChecklist(checklistId: string) {
+  return api.delete(`/api/v1/checklists/${checklistId}`);
+}
+
+export function addChecklistItem(checklistId: string, text: string) {
+  return api.post<ChecklistItem>(`/api/v1/checklists/${checklistId}/items`, { text });
+}
+
+export function updateChecklistItem(
+  itemId: string,
+  input: { text?: string; isDone?: boolean; dueDate?: string | null; assigneeId?: string | null },
+) {
+  return api.patch<ChecklistItem>(`/api/v1/checklists/items/${itemId}`, input);
+}
+
+export function removeChecklistItem(itemId: string) {
+  return api.delete(`/api/v1/checklists/items/${itemId}`);
+}
+
+export function moveChecklistItem(
+  itemId: string,
+  input: { afterItemId: string | null; toChecklistId?: string },
+) {
+  return api.patch(`/api/v1/checklists/items/${itemId}/move`, input);
+}
+
+/* ----------------- Comments ----------------- */
 
 export function createComment(input: { cardId: string; plainText: string }) {
   return api.post<CommentNode>('/api/v1/comments', input);

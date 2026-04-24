@@ -1,0 +1,301 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { PrismaService } from '@/common/prisma/prisma.service';
+import { computeInsertPosition } from '@/common/util/position';
+import type { TenantContext } from '@/common/tenant/tenant.types';
+import { BoardAccessService } from '@/modules/boards/board-access.service';
+import { EVENT_NAMES } from '@/modules/realtime/events.types';
+
+@Injectable()
+export class ChecklistsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: BoardAccessService,
+    private readonly events: EventEmitter2,
+  ) {}
+
+  /** ----------------- Checklists ----------------- */
+
+  async create(userId: string, tenant: TenantContext, input: { cardId: string; title: string }) {
+    const card = await this.getCardOrThrow(input.cardId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    const last = await this.prisma.checklist.findFirst({
+      where: { cardId: input.cardId },
+      orderBy: { position: 'desc' },
+      select: { position: true },
+    });
+    const position = computeInsertPosition(last?.position ?? null, null);
+
+    const checklist = await this.prisma.checklist.create({
+      data: { cardId: input.cardId, title: input.title, position },
+      include: { items: { orderBy: { position: 'asc' } } },
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId: card.boardId,
+        cardId: card.id,
+        actorId: userId,
+        type: 'CHECKLIST_CREATED',
+        payload: { checklistId: checklist.id, title: checklist.title },
+      },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+    });
+
+    return checklist;
+  }
+
+  async update(
+    userId: string,
+    tenant: TenantContext,
+    checklistId: string,
+    input: { title: string },
+  ) {
+    const { checklist, card } = await this.getChecklistOrThrow(checklistId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    const updated = await this.prisma.checklist.update({
+      where: { id: checklistId },
+      data: { title: input.title },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+    });
+
+    // checklist sem uso; mas future-proof
+    void checklist;
+    return updated;
+  }
+
+  async remove(userId: string, tenant: TenantContext, checklistId: string) {
+    const { card } = await this.getChecklistOrThrow(checklistId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    await this.prisma.checklist.delete({ where: { id: checklistId } });
+
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+    });
+
+    return { ok: true };
+  }
+
+  /** ----------------- Items ----------------- */
+
+  async addItem(
+    userId: string,
+    tenant: TenantContext,
+    checklistId: string,
+    input: { text: string },
+  ) {
+    const { card } = await this.getChecklistOrThrow(checklistId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    const last = await this.prisma.checklistItem.findFirst({
+      where: { checklistId },
+      orderBy: { position: 'desc' },
+      select: { position: true },
+    });
+    const position = computeInsertPosition(last?.position ?? null, null);
+
+    const item = await this.prisma.checklistItem.create({
+      data: { checklistId, text: input.text, position },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+    });
+
+    return item;
+  }
+
+  async updateItem(
+    userId: string,
+    tenant: TenantContext,
+    itemId: string,
+    input: { text?: string; isDone?: boolean; dueDate?: string | null; assigneeId?: string | null },
+  ) {
+    const { card, item } = await this.getItemOrThrow(itemId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    const isToggling = input.isDone !== undefined && input.isDone !== item.isDone;
+
+    const updated = await this.prisma.checklistItem.update({
+      where: { id: itemId },
+      data: {
+        text: input.text,
+        isDone: input.isDone,
+        dueDate:
+          input.dueDate !== undefined
+            ? input.dueDate
+              ? new Date(input.dueDate)
+              : null
+            : undefined,
+        assigneeId: input.assigneeId !== undefined ? input.assigneeId : undefined,
+        doneAt: isToggling ? (input.isDone ? new Date() : null) : undefined,
+        doneById: isToggling ? (input.isDone ? userId : null) : undefined,
+      },
+    });
+
+    if (isToggling) {
+      await this.prisma.activity.create({
+        data: {
+          organizationId: tenant.organizationId,
+          boardId: card.boardId,
+          cardId: card.id,
+          actorId: userId,
+          type: input.isDone ? 'CHECKLIST_ITEM_DONE' : 'CHECKLIST_ITEM_UNDONE',
+          payload: { itemId, text: item.text },
+        },
+      });
+    }
+
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+    });
+
+    return updated;
+  }
+
+  async removeItem(userId: string, tenant: TenantContext, itemId: string) {
+    const { card } = await this.getItemOrThrow(itemId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    await this.prisma.checklistItem.delete({ where: { id: itemId } });
+
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+    });
+
+    return { ok: true };
+  }
+
+  async moveItem(
+    userId: string,
+    tenant: TenantContext,
+    itemId: string,
+    input: { afterItemId: string | null; toChecklistId?: string },
+  ) {
+    const { card, item } = await this.getItemOrThrow(itemId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    const destChecklistId = input.toChecklistId ?? item.checklistId;
+    if (destChecklistId !== item.checklistId) {
+      // Valida que a destino pertence ao mesmo card
+      const dest = await this.prisma.checklist.findUnique({ where: { id: destChecklistId } });
+      if (!dest || dest.cardId !== card.id) {
+        throw new BadRequestException('Checklist destino inválida.');
+      }
+    }
+
+    const { beforePos, afterPos } = await this.resolveNeighbors(
+      destChecklistId,
+      input.afterItemId,
+      itemId,
+    );
+    const position = computeInsertPosition(beforePos, afterPos);
+
+    const updated = await this.prisma.checklistItem.update({
+      where: { id: itemId },
+      data: { checklistId: destChecklistId, position },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId: card.id,
+    });
+
+    return updated;
+  }
+
+  /** ----------------- Helpers ----------------- */
+
+  private async getCardOrThrow(cardId: string, organizationId: string) {
+    const card = await this.prisma.card.findUnique({ where: { id: cardId } });
+    if (!card || card.organizationId !== organizationId) {
+      throw new NotFoundException('Card não encontrado.');
+    }
+    return card;
+  }
+
+  private async getChecklistOrThrow(checklistId: string, organizationId: string) {
+    const checklist = await this.prisma.checklist.findUnique({
+      where: { id: checklistId },
+      include: { card: true },
+    });
+    if (!checklist || checklist.card.organizationId !== organizationId) {
+      throw new NotFoundException('Checklist não encontrada.');
+    }
+    return { checklist, card: checklist.card };
+  }
+
+  private async getItemOrThrow(itemId: string, organizationId: string) {
+    const item = await this.prisma.checklistItem.findUnique({
+      where: { id: itemId },
+      include: { checklist: { include: { card: true } } },
+    });
+    if (!item || item.checklist.card.organizationId !== organizationId) {
+      throw new NotFoundException('Item não encontrado.');
+    }
+    return { item, card: item.checklist.card };
+  }
+
+  private async resolveNeighbors(
+    checklistId: string,
+    afterItemId: string | null,
+    skipItemId: string,
+  ): Promise<{ beforePos: number | null; afterPos: number | null }> {
+    if (afterItemId === null) {
+      const first = await this.prisma.checklistItem.findFirst({
+        where: { checklistId, id: { not: skipItemId } },
+        orderBy: { position: 'asc' },
+        select: { position: true },
+      });
+      return { beforePos: null, afterPos: first?.position ?? null };
+    }
+    const before = await this.prisma.checklistItem.findUnique({
+      where: { id: afterItemId },
+      select: { position: true, checklistId: true },
+    });
+    if (!before || before.checklistId !== checklistId) {
+      throw new BadRequestException('Item referência não está na checklist destino.');
+    }
+    const next = await this.prisma.checklistItem.findFirst({
+      where: {
+        checklistId,
+        id: { not: skipItemId },
+        position: { gt: before.position },
+      },
+      orderBy: { position: 'asc' },
+      select: { position: true },
+    });
+    return { beforePos: before.position, afterPos: next?.position ?? null };
+  }
+}

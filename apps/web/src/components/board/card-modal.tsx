@@ -28,6 +28,7 @@ import { UserAvatar } from '@/components/user-avatar';
 import { TimelineFeed } from './timeline-feed';
 import { MemberPicker } from './member-picker';
 import { LeadPicker } from './lead-picker';
+import { ChecklistBlock } from './checklist-block';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Baixa', classes: 'bg-bg-emphasis text-fg-muted' },
@@ -286,17 +287,9 @@ function CardModalContent({
             </div>
           </Block>
 
-          {/* Tarefas do card (placeholder) */}
+          {/* Tarefas do card */}
           <Block icon={<ChecklistIcon />} label={`Tarefas do card (${card.checklists.length})`}>
-            <button
-              type="button"
-              disabled
-              className="border-border text-fg-muted inline-flex items-center gap-2 rounded-md border border-dashed px-3 py-1.5 text-xs opacity-60"
-              title="Em breve"
-            >
-              + Adicionar tarefa
-            </button>
-            <p className="text-fg-subtle mt-2 text-[11px]">Checklists completas chegam em breve.</p>
+            <ChecklistBlock card={card} boardId={boardId} />
           </Block>
         </div>
 

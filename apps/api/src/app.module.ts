@@ -14,6 +14,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { BoardsModule } from './modules/boards/boards.module';
 import { ListsModule } from './modules/lists/lists.module';
 import { CardsModule } from './modules/cards/cards.module';
+import { ChecklistsModule } from './modules/checklists/checklists.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
@@ -71,6 +72,7 @@ import { StorageModule } from './modules/storage/storage.module';
     BoardsModule,
     ListsModule,
     CardsModule,
+    ChecklistsModule,
     CommentsModule,
     NotificationsModule,
     RealtimeModule,
