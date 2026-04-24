@@ -16,6 +16,7 @@ import {
   Loader2,
   Lock,
   MoreHorizontal,
+  Paperclip,
   Tag,
   Users,
   X,
@@ -29,6 +30,7 @@ import { TimelineFeed } from './timeline-feed';
 import { MemberPicker } from './member-picker';
 import { LeadPicker } from './lead-picker';
 import { ChecklistBlock } from './checklist-block';
+import { AttachmentsBlock } from './attachments-block';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Baixa', classes: 'bg-bg-emphasis text-fg-muted' },
@@ -290,6 +292,11 @@ function CardModalContent({
           {/* Tarefas do card */}
           <Block icon={<ChecklistIcon />} label={`Tarefas do card (${card.checklists.length})`}>
             <ChecklistBlock card={card} boardId={boardId} />
+          </Block>
+
+          {/* Anexos */}
+          <Block icon={<Paperclip size={14} />} label={`Anexos (${card.attachments.length})`}>
+            <AttachmentsBlock card={card} boardId={boardId} />
           </Block>
         </div>
 

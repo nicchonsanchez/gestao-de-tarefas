@@ -95,9 +95,17 @@ export class StorageService {
       ContentType: opts.contentType,
     });
     const uploadUrl = await getSignedUrl(this.presignClient, cmd, { expiresIn: ttl });
-    const publicUrl = `${this.publicBase!}/${key}`;
+    const publicUrl = this.publicUrlFor(key);
 
     return { uploadUrl, publicUrl, key, expiresIn: ttl };
+  }
+
+  /** Monta a URL pública pra ler um objeto já existente (útil pra anexos). */
+  publicUrlFor(key: string): string {
+    if (!this.publicBase) {
+      throw new ServiceUnavailableException('Armazenamento de arquivos não configurado.');
+    }
+    return `${this.publicBase}/${key}`;
   }
 }
 
@@ -108,6 +116,23 @@ function mimeToExt(mime: string): string | null {
     'image/webp': 'webp',
     'image/gif': 'gif',
     'image/avif': 'avif',
+    'image/svg+xml': 'svg',
+    'application/pdf': 'pdf',
+    'application/zip': 'zip',
+    'application/x-zip-compressed': 'zip',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    'application/vnd.ms-powerpoint': 'ppt',
+    'text/plain': 'txt',
+    'text/csv': 'csv',
+    'text/markdown': 'md',
+    'application/json': 'json',
+    'video/mp4': 'mp4',
+    'audio/mpeg': 'mp3',
+    'audio/wav': 'wav',
   };
   return map[mime.toLowerCase()] ?? null;
 }

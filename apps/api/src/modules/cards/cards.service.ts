@@ -7,6 +7,7 @@ import { computeInsertPosition } from '@/common/util/position';
 import type { TenantContext } from '@/common/tenant/tenant.types';
 import { BoardAccessService } from '@/modules/boards/board-access.service';
 import { EVENT_NAMES } from '@/modules/realtime/events.types';
+import { StorageService } from '@/modules/storage/storage.service';
 
 interface CreateCardInput {
   listId: string;
@@ -39,6 +40,7 @@ export class CardsService {
     private readonly prisma: PrismaService,
     private readonly access: BoardAccessService,
     private readonly events: EventEmitter2,
+    private readonly storage: StorageService,
   ) {}
 
   async create(userId: string, tenant: TenantContext, input: CreateCardInput) {
@@ -95,7 +97,7 @@ export class CardsService {
   async getOne(userId: string, tenant: TenantContext, cardId: string) {
     const card = await this.getCardOrThrow(cardId, tenant.organizationId);
     await this.access.assertAccess(userId, card.boardId, tenant, 'VIEWER');
-    return this.prisma.card.findUnique({
+    const result = await this.prisma.card.findUnique({
       where: { id: cardId },
       include: {
         list: { select: { id: true, name: true, boardId: true } },
@@ -108,7 +110,10 @@ export class CardsService {
           include: { items: { orderBy: { position: 'asc' } } },
           orderBy: { position: 'asc' },
         },
-        attachments: true,
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+          include: { uploader: { select: { id: true, name: true, avatarUrl: true } } },
+        },
         comments: {
           orderBy: { createdAt: 'asc' },
           include: { author: { select: { id: true, name: true, email: true, avatarUrl: true } } },
@@ -121,6 +126,13 @@ export class CardsService {
         _count: { select: { children: true } },
       },
     });
+    if (!result) return null;
+    // Hidrata publicUrl dos anexos a partir do storageKey
+    const attachments = result.attachments.map((a) => ({
+      ...a,
+      publicUrl: this.storage.isEnabled() ? this.storage.publicUrlFor(a.storageKey) : null,
+    }));
+    return { ...result, attachments };
   }
 
   async update(userId: string, tenant: TenantContext, cardId: string, input: UpdateCardInput) {

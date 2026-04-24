@@ -13,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { BoardsModule } from './modules/boards/boards.module';
 import { ListsModule } from './modules/lists/lists.module';
+import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { CardsModule } from './modules/cards/cards.module';
 import { ChecklistsModule } from './modules/checklists/checklists.module';
 import { CommentsModule } from './modules/comments/comments.module';
@@ -73,6 +74,7 @@ import { StorageModule } from './modules/storage/storage.module';
     ListsModule,
     CardsModule,
     ChecklistsModule,
+    AttachmentsModule,
     CommentsModule,
     NotificationsModule,
     RealtimeModule,

@@ -29,7 +29,7 @@ export interface CardDetail {
     label: { id: string; name: string; color: string };
   }>;
   checklists: Checklist[];
-  attachments: Array<{ id: string; fileName: string; mimeType: string; sizeBytes: number }>;
+  attachments: Attachment[];
   comments: CommentNode[];
   activities: ActivityNode[];
   _count: { children: number };
@@ -158,6 +158,83 @@ export function moveChecklistItem(
   input: { afterItemId: string | null; toChecklistId?: string },
 ) {
   return api.patch(`/api/v1/checklists/items/${itemId}/move`, input);
+}
+
+/* ----------------- Attachments ----------------- */
+
+export interface Attachment {
+  id: string;
+  cardId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageKey: string;
+  kind: 'FILE' | 'IMAGE' | 'LINK';
+  publicUrl: string | null;
+  createdAt: string;
+  uploader: { id: string; name: string; avatarUrl: string | null };
+}
+
+export interface AttachmentPresign {
+  uploadUrl: string;
+  publicUrl: string;
+  key: string;
+  expiresIn: number;
+}
+
+export function presignAttachment(
+  cardId: string,
+  input: { fileName: string; contentType: string; sizeBytes: number },
+) {
+  return api.post<AttachmentPresign>(`/api/v1/cards/${cardId}/attachments/presign`, input);
+}
+
+export function createAttachment(
+  cardId: string,
+  input: { fileName: string; mimeType: string; sizeBytes: number; storageKey: string },
+) {
+  return api.post<Attachment>(`/api/v1/cards/${cardId}/attachments`, input);
+}
+
+export function removeAttachment(attachmentId: string) {
+  return api.delete(`/api/v1/attachments/${attachmentId}`);
+}
+
+/**
+ * Upload completo: presign → PUT direto no storage → create registro.
+ * Devolve o Attachment criado (com publicUrl).
+ */
+export async function uploadAttachment(cardId: string, file: File): Promise<Attachment> {
+  const presign = await presignAttachment(cardId, {
+    fileName: file.name,
+    contentType: file.type || 'application/octet-stream',
+    sizeBytes: file.size,
+  });
+
+  try {
+    const res = await fetch(presign.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    });
+    if (!res.ok) {
+      throw new Error(`Falha no upload (servidor de arquivos respondeu HTTP ${res.status}).`);
+    }
+  } catch (err) {
+    if (err instanceof Error && !/HTTP\s/.test(err.message)) {
+      throw new Error(
+        'Não foi possível enviar o arquivo pro servidor. Verifique sua conexão e tente de novo.',
+      );
+    }
+    throw err;
+  }
+
+  return createAttachment(cardId, {
+    fileName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    sizeBytes: file.size,
+    storageKey: presign.key,
+  });
 }
 
 /* ----------------- Comments ----------------- */
