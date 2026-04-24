@@ -26,6 +26,7 @@ import { archiveCard, cardsQueries, updateCard, type CardDetail } from '@/lib/qu
 import { proseToPlainText } from '@/lib/prose';
 import { UserAvatar } from '@/components/user-avatar';
 import { TimelineFeed } from './timeline-feed';
+import { MemberPicker } from './member-picker';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Baixa', classes: 'bg-bg-emphasis text-fg-muted' },
@@ -216,28 +217,9 @@ function CardModalContent({
             )}
           </Block>
 
-          {/* Contatos (= membros) */}
+          {/* Contatos (= membros da Org atribuídos ao card) */}
           <Block icon={<Users size={14} />} label="Contatos">
-            {card.members.length === 0 ? (
-              <p className="text-fg-muted text-xs">Nenhum contato atribuído.</p>
-            ) : (
-              <ul className="flex flex-col gap-1.5">
-                {card.members.map((m) => (
-                  <li key={m.userId} className="flex items-center gap-2 text-xs">
-                    <UserAvatar
-                      name={m.user.name}
-                      userId={m.user.id}
-                      avatarUrl={m.user.avatarUrl}
-                      size="sm"
-                    />
-                    <span className="truncate">{m.user.name}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="text-fg-subtle mt-2 text-[11px]">
-              Atribuir novos contatos estará disponível em breve.
-            </p>
+            <MemberPicker card={card} boardId={boardId} />
           </Block>
 
           {/* Prioridade + Prazo */}

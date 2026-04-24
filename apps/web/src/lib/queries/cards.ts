@@ -98,6 +98,17 @@ export function unassignMember(cardId: string, userId: string) {
   return api.delete(`/api/v1/cards/${cardId}/members/${userId}`);
 }
 
+export interface OrgMember {
+  userId: string;
+  role: 'OWNER' | 'ADMIN' | 'GESTOR' | 'MEMBER' | 'GUEST';
+  user: { id: string; name: string; email: string; avatarUrl: string | null };
+}
+
+export const orgMembersQuery = {
+  queryKey: ['org-members'] as const,
+  queryFn: () => api.get<OrgMember[]>('/api/v1/organizations/members'),
+};
+
 export function createComment(input: { cardId: string; plainText: string }) {
   return api.post<CommentNode>('/api/v1/comments', input);
 }
