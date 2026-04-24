@@ -1,5 +1,15 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { z } from 'zod';
 
 import {
   ChangePasswordRequestSchema,
@@ -12,8 +22,18 @@ import { ZodValidationPipe } from '@/common/validation/zod-validation.pipe';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import type { AuthenticatedRequestContext } from '@/modules/auth/auth.types';
 import { AuthService } from '@/modules/auth/auth.service';
+import { StorageService } from '@/modules/storage/storage.service';
 
 import { UsersService } from './users.service';
+
+const ALLOWED_AVATAR_MIMES = ['image/png', 'image/jpeg', 'image/webp', 'image/avif'] as const;
+
+const AvatarPresignRequestSchema = z.object({
+  contentType: z.enum(ALLOWED_AVATAR_MIMES, {
+    errorMap: () => ({ message: 'Formato não suportado. Use PNG, JPEG, WEBP ou AVIF.' }),
+  }),
+});
+type AvatarPresignRequest = z.infer<typeof AvatarPresignRequestSchema>;
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -22,6 +42,7 @@ export class UsersController {
   constructor(
     private readonly users: UsersService,
     private readonly auth: AuthService,
+    private readonly storage: StorageService,
   ) {}
 
   @Get('me')
@@ -67,5 +88,28 @@ export class UsersController {
     @Body(new ZodValidationPipe(ChangePasswordRequestSchema)) body: ChangePasswordRequest,
   ): Promise<void> {
     await this.auth.changePassword(user.userId, body.currentPassword, body.newPassword);
+  }
+
+  @Post('me/avatar/presigned-url')
+  @ApiOperation({
+    summary: 'Gera URL pré-assinada pra upload do avatar',
+    description:
+      'Cliente faz PUT na uploadUrl retornada com o arquivo cru, depois chama PATCH /users/me passando o avatarUrl.',
+  })
+  async presignAvatar(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @Body(new ZodValidationPipe(AvatarPresignRequestSchema)) body: AvatarPresignRequest,
+  ) {
+    if (!this.storage.isEnabled()) {
+      throw new BadRequestException(
+        'Upload de foto não está configurado neste ambiente. Fale com o administrador.',
+      );
+    }
+    return this.storage.presignUpload({
+      keyPrefix: `avatars/${user.userId}`,
+      contentType: body.contentType,
+      maxSize: 5 * 1024 * 1024, // 5MB
+      ttl: 120,
+    });
   }
 }

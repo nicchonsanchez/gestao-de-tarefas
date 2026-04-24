@@ -17,6 +17,7 @@ import { CardsModule } from './modules/cards/cards.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     CommentsModule,
     NotificationsModule,
     RealtimeModule,
+    StorageModule,
     HealthModule,
   ],
 })
