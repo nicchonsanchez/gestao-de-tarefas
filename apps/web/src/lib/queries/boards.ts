@@ -43,6 +43,7 @@ export interface BoardDetail {
   color: string | null;
   visibility: 'PRIVATE' | 'ORGANIZATION';
   isArchived: boolean;
+  completedCount: number;
   lists: ListWithCards[];
   labels: Array<{ id: string; name: string; color: string }>;
   members: Array<{
@@ -50,6 +51,23 @@ export interface BoardDetail {
     role: 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER';
     user: { id: string; name: string; email: string; avatarUrl: string | null };
   }>;
+}
+
+export interface CompletedCardItem {
+  id: string;
+  title: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  dueDate: string | null;
+  completedAt: string;
+  list: { id: string; name: string; isArchived: boolean };
+  completedBy: { id: string; name: string; email: string; avatarUrl: string | null } | null;
+  labels: Array<{ label: { id: string; name: string; color: string } }>;
+  _count: { comments: number; attachments: number; checklists: number };
+}
+
+export interface CompletedCardsPage {
+  items: CompletedCardItem[];
+  nextCursor: string | null;
 }
 
 export const boardsQueries = {
@@ -76,4 +94,23 @@ export function createCard(input: { listId: string; title: string }) {
     '/api/v1/cards',
     input,
   );
+}
+
+export function completeCard(cardId: string) {
+  return api.post(`/api/v1/cards/${cardId}/complete`, {});
+}
+
+export function uncompleteCard(cardId: string, toListId?: string) {
+  return api.post(`/api/v1/cards/${cardId}/uncomplete`, toListId ? { toListId } : {});
+}
+
+export function fetchCompletedCards(
+  boardId: string,
+  params: { limit?: number; cursor?: string | null } = {},
+) {
+  const qs = new URLSearchParams();
+  if (params.limit) qs.set('limit', String(params.limit));
+  if (params.cursor) qs.set('cursor', params.cursor);
+  const suffix = qs.toString() ? `?${qs}` : '';
+  return api.get<CompletedCardsPage>(`/api/v1/boards/${boardId}/completed-cards${suffix}`);
 }

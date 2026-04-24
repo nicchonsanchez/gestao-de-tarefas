@@ -72,6 +72,8 @@ enum ActivityType {
   CARD_MOVED
   CARD_ARCHIVED
   CARD_RESTORED
+  CARD_COMPLETED
+  CARD_UNCOMPLETED
   CARD_ASSIGNED
   CARD_UNASSIGNED
   LABEL_ADDED
@@ -118,6 +120,7 @@ model User {
   boardMemberships BoardMember[]
   boardsCreated   Board[]         @relation("BoardCreator")
   cardsCreated    Card[]          @relation("CardCreator")
+  cardsCompleted  Card[]          @relation("CardCompletedBy")
   cardAssignments CardMember[]
   commentsAuthored Comment[]
   attachmentsUploaded Attachment[]
@@ -272,6 +275,7 @@ model Card {
   startDate       DateTime?
   dueDate         DateTime?
   completedAt     DateTime?
+  completedById   String?
   estimateMinutes Int?
   isArchived      Boolean   @default(false)
   parentCardId    String?
@@ -282,6 +286,7 @@ model Card {
   board     Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
   list      List         @relation(fields: [listId], references: [id], onDelete: Cascade)
   createdBy User         @relation("CardCreator", fields: [createdById], references: [id])
+  completedBy User?      @relation("CardCompletedBy", fields: [completedById], references: [id])
   parent    Card?        @relation("Subtasks", fields: [parentCardId], references: [id], onDelete: SetNull)
   children  Card[]       @relation("Subtasks")
   members   CardMember[]
@@ -293,6 +298,7 @@ model Card {
 
   @@index([organizationId])
   @@index([boardId, isArchived])
+  @@index([boardId, completedAt])
   @@index([listId, position])
   @@index([dueDate])
 }

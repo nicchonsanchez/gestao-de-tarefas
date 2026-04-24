@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ZodValidationPipe } from '@/common/validation/zod-validation.pipe';
@@ -78,5 +88,20 @@ export class BoardsController {
     @Param('boardId') boardId: string,
   ) {
     return this.boards.restore(user.userId, org, boardId);
+  }
+
+  @Get(':boardId/completed-cards')
+  @ApiOperation({ summary: 'Listar cards finalizados do quadro (paginado)' })
+  listCompleted(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('boardId') boardId: string,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.boards.listCompleted(user.userId, org, boardId, {
+      limit: limit ? Number(limit) : undefined,
+      cursor,
+    });
   }
 }

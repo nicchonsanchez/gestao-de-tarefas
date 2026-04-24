@@ -131,32 +131,73 @@ export class BoardsService {
 
   async getOne(userId: string, tenant: TenantContext, boardId: string) {
     await this.access.assertAccess(userId, boardId, tenant, 'VIEWER');
-    return this.prisma.board.findUnique({
-      where: { id: boardId },
-      include: {
-        lists: {
-          where: { isArchived: false },
-          orderBy: { position: 'asc' },
-          include: {
-            cards: {
-              where: { isArchived: false },
-              orderBy: { position: 'asc' },
-              include: {
-                members: {
-                  include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+    const [board, completedCount] = await Promise.all([
+      this.prisma.board.findUnique({
+        where: { id: boardId },
+        include: {
+          lists: {
+            where: { isArchived: false },
+            orderBy: { position: 'asc' },
+            include: {
+              cards: {
+                where: { isArchived: false, completedAt: null },
+                orderBy: { position: 'asc' },
+                include: {
+                  members: {
+                    include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+                  },
+                  labels: { include: { label: true } },
+                  _count: { select: { comments: true, attachments: true, checklists: true } },
                 },
-                labels: { include: { label: true } },
-                _count: { select: { comments: true, attachments: true, checklists: true } },
               },
             },
           },
+          labels: true,
+          members: {
+            include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          },
         },
-        labels: true,
-        members: {
-          include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
-        },
+      }),
+      this.prisma.card.count({
+        where: { boardId, isArchived: false, completedAt: { not: null } },
+      }),
+    ]);
+    if (!board) return null;
+    return { ...board, completedCount };
+  }
+
+  async listCompleted(
+    userId: string,
+    tenant: TenantContext,
+    boardId: string,
+    params: { limit?: number; cursor?: string } = {},
+  ) {
+    await this.access.assertAccess(userId, boardId, tenant, 'VIEWER');
+    const limit = Math.min(params.limit ?? 30, 100);
+
+    const items = await this.prisma.card.findMany({
+      where: {
+        boardId,
+        organizationId: tenant.organizationId,
+        isArchived: false,
+        completedAt: { not: null },
+      },
+      orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
+      include: {
+        list: { select: { id: true, name: true, isArchived: true } },
+        completedBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        labels: { include: { label: true } },
+        _count: { select: { comments: true, attachments: true, checklists: true } },
       },
     });
+
+    const hasMore = items.length > limit;
+    const page = hasMore ? items.slice(0, limit) : items;
+    const nextCursor = hasMore ? (page[page.length - 1]?.id ?? null) : null;
+
+    return { items: page, nextCursor };
   }
 
   async update(userId: string, tenant: TenantContext, boardId: string, input: UpdateBoardInput) {

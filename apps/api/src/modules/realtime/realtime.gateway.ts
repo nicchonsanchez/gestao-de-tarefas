@@ -21,6 +21,8 @@ import type {
   CardCreatedPayload,
   CardUpdatedPayload,
   CardArchivedPayload,
+  CardCompletedPayload,
+  CardUncompletedPayload,
   ListCreatedPayload,
   ListUpdatedPayload,
   CommentAddedPayload,
@@ -167,6 +169,16 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   @OnEvent(EVENT_NAMES.CARD_ARCHIVED)
   onCardArchived(payload: CardArchivedPayload) {
     this.broadcastBoard(payload, 'card.archived', payload);
+  }
+
+  @OnEvent(EVENT_NAMES.CARD_COMPLETED)
+  onCardCompleted(payload: CardCompletedPayload) {
+    this.broadcastBoard(payload, 'card.completed', payload);
+  }
+
+  @OnEvent(EVENT_NAMES.CARD_UNCOMPLETED)
+  onCardUncompleted(payload: CardUncompletedPayload) {
+    this.broadcastBoard(payload, 'card.uncompleted', payload);
   }
 
   @OnEvent(EVENT_NAMES.LIST_CREATED)

@@ -88,6 +88,27 @@ export class CardsController {
     return this.cards.restore(user.userId, org, cardId);
   }
 
+  @Post(':cardId/complete')
+  @ApiOperation({ summary: 'Finalizar card (entra no histórico do quadro)' })
+  complete(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('cardId') cardId: string,
+  ) {
+    return this.cards.complete(user.userId, org, cardId);
+  }
+
+  @Post(':cardId/uncomplete')
+  @ApiOperation({ summary: 'Reabrir card finalizado (volta para uma lista ativa)' })
+  uncomplete(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('cardId') cardId: string,
+    @Body() body: { toListId?: string },
+  ) {
+    return this.cards.uncomplete(user.userId, org, cardId, body?.toListId);
+  }
+
   @Post(':cardId/members')
   @ApiOperation({ summary: 'Atribuir membro ao card' })
   assign(

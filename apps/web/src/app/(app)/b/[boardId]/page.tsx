@@ -23,10 +23,17 @@ import {
 } from '@dnd-kit/sortable';
 import { Loader2 } from 'lucide-react';
 
-import { boardsQueries, moveCard, type BoardDetail, type CardListItem } from '@/lib/queries/boards';
+import {
+  boardsQueries,
+  completeCard,
+  moveCard,
+  type BoardDetail,
+  type CardListItem,
+} from '@/lib/queries/boards';
 import { CardItem, CardOverlay } from '@/components/board/card-item';
 import { ListColumn } from '@/components/board/list-column';
 import { CardModal } from '@/components/board/card-modal';
+import { CompletedColumn, COMPLETED_DROPPABLE_ID } from '@/components/board/completed-column';
 import { ApiError } from '@/lib/api-client';
 import { useRealtimeBoard } from '@/hooks/use-realtime-board';
 
@@ -72,6 +79,9 @@ export default function BoardPage() {
     const overId = String(over.id);
     if (activeId === overId) return;
 
+    // Drop em coluna "Finalizado" é tratado só no handleDragEnd (não move card entre listas)
+    if (overId === COMPLETED_DROPPABLE_ID) return;
+
     const activeListId = cardIdToListId.get(activeId);
     const overListId = cardIdToListId.get(overId) ?? overId; // overId pode ser um listId
     if (!activeListId || !overListId) return;
@@ -101,6 +111,33 @@ export default function BoardPage() {
 
     const activeId = String(active.id);
     const overId = String(over.id);
+
+    // Drop na coluna virtual "Finalizado" = finalizar card
+    if (overId === COMPLETED_DROPPABLE_ID) {
+      // Remove otimisticamente da lista atual e incrementa contagem
+      queryClient.setQueryData<BoardDetail>(boardsQueries.detail(boardId).queryKey, (prev) => {
+        if (!prev) return prev;
+        const next = structuredClone(prev);
+        for (const l of next.lists) {
+          const idx = l.cards.findIndex((c) => c.id === activeId);
+          if (idx >= 0) {
+            l.cards.splice(idx, 1);
+            break;
+          }
+        }
+        next.completedCount = (next.completedCount ?? 0) + 1;
+        return next;
+      });
+      try {
+        await completeCard(activeId);
+        queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'completed'] });
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : 'Erro ao finalizar card.';
+        console.error('[board] complete failed:', msg);
+        queryClient.invalidateQueries({ queryKey: boardsQueries.detail(boardId).queryKey });
+      }
+      return;
+    }
 
     const activeListId = cardIdToListId.get(activeId);
     if (!activeListId) return;
@@ -197,6 +234,7 @@ export default function BoardPage() {
                 </SortableContext>
               </ListColumn>
             ))}
+            <CompletedColumn boardId={boardId} completedCount={board.completedCount ?? 0} />
           </div>
         </div>
 

@@ -46,7 +46,7 @@ export class CardsService {
     await this.access.assertAccess(userId, list.boardId, tenant, 'EDITOR');
 
     const last = await this.prisma.card.findFirst({
-      where: { listId: input.listId, isArchived: false },
+      where: { listId: input.listId, isArchived: false, completedAt: null },
       orderBy: { position: 'desc' },
       select: { position: true },
     });
@@ -262,6 +262,103 @@ export class CardsService {
     });
   }
 
+  async complete(userId: string, tenant: TenantContext, cardId: string) {
+    const card = await this.getCardOrThrow(cardId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    if (card.completedAt) {
+      return card; // idempotente
+    }
+
+    const updated = await this.prisma.card.update({
+      where: { id: cardId },
+      data: { completedAt: new Date(), completedById: userId },
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId: card.boardId,
+        cardId,
+        actorId: userId,
+        type: 'CARD_COMPLETED',
+        payload: { cardId, fromListId: card.listId },
+      },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_COMPLETED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId,
+      listId: card.listId,
+    });
+
+    return updated;
+  }
+
+  async uncomplete(userId: string, tenant: TenantContext, cardId: string, toListId?: string) {
+    const card = await this.getCardOrThrow(cardId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    if (!card.completedAt) {
+      return card; // idempotente
+    }
+
+    // Decide a lista destino: a solicitada, ou a original se ainda ativa, ou a primeira lista não-arquivada do board
+    let targetListId = toListId ?? card.listId;
+    const targetList = await this.prisma.list.findUnique({ where: { id: targetListId } });
+    if (!targetList || targetList.boardId !== card.boardId || targetList.isArchived) {
+      const firstList = await this.prisma.list.findFirst({
+        where: { boardId: card.boardId, isArchived: false },
+        orderBy: { position: 'asc' },
+      });
+      if (!firstList) {
+        throw new BadRequestException('Não há lista disponível para restaurar o card.');
+      }
+      targetListId = firstList.id;
+    }
+
+    // Posiciona no fim da lista destino
+    const last = await this.prisma.card.findFirst({
+      where: { listId: targetListId, isArchived: false, completedAt: null },
+      orderBy: { position: 'desc' },
+      select: { position: true },
+    });
+    const position = computeInsertPosition(last?.position ?? null, null);
+
+    const updated = await this.prisma.card.update({
+      where: { id: cardId },
+      data: {
+        completedAt: null,
+        completedById: null,
+        listId: targetListId,
+        position,
+      },
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId: card.boardId,
+        cardId,
+        actorId: userId,
+        type: 'CARD_UNCOMPLETED',
+        payload: { cardId, toListId: targetListId },
+      },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_UNCOMPLETED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId,
+      listId: targetListId,
+    });
+
+    return updated;
+  }
+
   async assignMember(userId: string, tenant: TenantContext, cardId: string, memberUserId: string) {
     const card = await this.getCardOrThrow(cardId, tenant.organizationId);
     await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
@@ -394,7 +491,7 @@ export class CardsService {
   ): Promise<{ beforePos: number | null; afterPos: number | null }> {
     if (afterCardId === null) {
       const first = await this.prisma.card.findFirst({
-        where: { listId, isArchived: false, id: { not: skipCardId } },
+        where: { listId, isArchived: false, completedAt: null, id: { not: skipCardId } },
         orderBy: { position: 'asc' },
         select: { position: true },
       });
@@ -413,6 +510,7 @@ export class CardsService {
       where: {
         listId,
         isArchived: false,
+        completedAt: null,
         id: { not: skipCardId },
         position: { gt: before.position },
       },

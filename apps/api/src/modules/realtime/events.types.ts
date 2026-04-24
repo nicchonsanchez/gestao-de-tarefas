@@ -33,6 +33,16 @@ export interface CardArchivedPayload extends BoardEventPayload {
   cardId: string;
 }
 
+export interface CardCompletedPayload extends BoardEventPayload {
+  cardId: string;
+  listId: string;
+}
+
+export interface CardUncompletedPayload extends BoardEventPayload {
+  cardId: string;
+  listId: string;
+}
+
 export interface ListCreatedPayload extends BoardEventPayload {
   listId: string;
 }
@@ -65,6 +75,8 @@ export const EVENT_NAMES = {
   CARD_MOVED: 'board.card.moved',
   CARD_UPDATED: 'board.card.updated',
   CARD_ARCHIVED: 'board.card.archived',
+  CARD_COMPLETED: 'board.card.completed',
+  CARD_UNCOMPLETED: 'board.card.uncompleted',
   LIST_CREATED: 'board.list.created',
   LIST_UPDATED: 'board.list.updated',
   COMMENT_ADDED: 'board.comment.added',

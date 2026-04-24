@@ -39,6 +39,14 @@ export function useRealtimeBoard(params: { boardId: string; organizationId: stri
       'card.archived': () => {
         queryClient.invalidateQueries({ queryKey: boardsQueries.detail(boardId).queryKey });
       },
+      'card.completed': () => {
+        queryClient.invalidateQueries({ queryKey: boardsQueries.detail(boardId).queryKey });
+        queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'completed'] });
+      },
+      'card.uncompleted': () => {
+        queryClient.invalidateQueries({ queryKey: boardsQueries.detail(boardId).queryKey });
+        queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'completed'] });
+      },
       'list.created': () => {
         queryClient.invalidateQueries({ queryKey: boardsQueries.detail(boardId).queryKey });
       },
