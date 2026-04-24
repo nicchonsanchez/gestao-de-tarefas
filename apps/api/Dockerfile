@@ -50,15 +50,12 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 
-# Copia apenas o necessário para rodar
-COPY --from=builder --chown=nestjs:nodejs /repo/apps/api/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /repo/apps/api/package.json ./package.json
-COPY --from=builder --chown=nestjs:nodejs /repo/apps/api/prisma ./prisma
-COPY --from=builder --chown=nestjs:nodejs /repo/node_modules ./node_modules
-COPY --from=builder --chown=nestjs:nodejs /repo/apps/api/node_modules ./apps-api-node_modules
-# Mescla node_modules do app sobre o root (resolve deps locais do workspace)
-RUN cp -r apps-api-node_modules/. node_modules/ 2>/dev/null || true && rm -rf apps-api-node_modules
+# Copia a árvore inteira do monorepo preservando a estrutura pnpm (symlinks em
+# .pnpm são relativos — mover node_modules para fora quebra a resolução).
+# Inclui dist/ já compilado em apps/api/dist.
+COPY --from=builder --chown=nestjs:nodejs /repo/ ./
 
+WORKDIR /app/apps/api
 USER nestjs
 
 EXPOSE 4000
