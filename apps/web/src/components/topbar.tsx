@@ -47,24 +47,25 @@ export function Topbar() {
             <span className="text-[15px] font-semibold tracking-tight">KTask</span>
           </Link>
           <div className="bg-border/70 h-5 w-px shrink-0" aria-hidden />
-          <nav className="flex items-center gap-0.5">
+          <nav className="flex h-[52px] items-stretch">
             {NAV.map((item) => {
               const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative rounded-md px-3 py-1.5 text-sm transition-colors ${
-                    active ? 'text-primary' : 'text-fg-muted hover:bg-bg-muted hover:text-fg'
+                  className={`group relative flex items-center px-3 text-sm transition-colors ${
+                    active ? 'text-primary' : 'text-fg-muted hover:text-fg'
                   }`}
                 >
                   {item.label}
-                  {active && (
-                    <span
-                      className="bg-primary absolute inset-x-3 -bottom-[13px] h-[2px] rounded-t"
-                      aria-hidden
-                    />
-                  )}
+                  {/* Indicador inferior compartilhado: ativo = roxo; hover = cinza */}
+                  <span
+                    aria-hidden
+                    className={`absolute inset-x-3 bottom-0 h-[2px] rounded-t transition-colors ${
+                      active ? 'bg-primary' : 'group-hover:bg-border-strong bg-transparent'
+                    }`}
+                  />
                 </Link>
               );
             })}
