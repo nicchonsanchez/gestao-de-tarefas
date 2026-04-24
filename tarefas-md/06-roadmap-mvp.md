@@ -11,6 +11,7 @@ Tempo é **estimativa** baseada em 2 devs full-time (1 fullstack sênior + 1 ple
 Antes de qualquer feature, montar o esqueleto.
 
 ### Entregas
+
 - Monorepo pnpm + Turborepo inicializado.
 - `apps/web` (Next.js 15) e `apps/api` (NestJS 11) bootados com "hello world".
 - `docker-compose.yml` (Postgres, Redis, MinIO, Mailpit).
@@ -21,6 +22,7 @@ Antes de qualquer feature, montar o esqueleto.
 - Seed: 1 Org + 1 usuário admin (`admin@kharis.local / admin`).
 
 ### Aceite
+
 - `pnpm dev` sobe tudo; `curl /healthz` responde 200; `pnpm test` passa em ambos.
 
 ---
@@ -30,6 +32,7 @@ Antes de qualquer feature, montar o esqueleto.
 **Objetivo**: Kanban colaborativo funcional para a primeira equipe usar de verdade.
 
 ### Escopo (requisitos marcados **M**)
+
 - **Auth** completa: login, logout, refresh, recuperação, bloqueio por tentativas.
 - **Organização**: criação inicial, convites, papéis OWNER/ADMIN/MEMBER.
 - **Quadros**: criar, listar, arquivar, visibilidade, membros com papéis.
@@ -44,6 +47,7 @@ Antes de qualquer feature, montar o esqueleto.
 - **Tema claro/escuro**.
 
 ### Aceite
+
 - Equipe de 5 pessoas usa por 2 semanas sem bug bloqueador.
 - Quadro com 200 cards: TTI < 3s, drag sem lag.
 - 2+ usuários no mesmo quadro veem alterações < 1s.
@@ -51,6 +55,7 @@ Antes de qualquer feature, montar o esqueleto.
 - Deploy em staging automatizado.
 
 ### Riscos / atenções
+
 - Drag & drop real-time tem armadilha de movimentos concorrentes (dois usuários arrastando simultaneamente) — validar conflict resolution com `updatedAt`.
 - Rich-text (Tiptap) pode virar tempo perdido se tentar estender demais no MVP — limitar a: bold, italic, listas, links, menções, código inline.
 
@@ -61,6 +66,7 @@ Antes de qualquer feature, montar o esqueleto.
 **Objetivo**: o pulo do gato vs Trello. Aqui o sistema vira "Ummense-like".
 
 ### Escopo (requisitos **1**)
+
 - **Engine de automações** completo (triggers, conditions, actions).
 - **Biblioteca inicial de actions**: move-to-list, assign, label, set-field, post-comment, send-email, **send-whatsapp (Evolution API)**, create-card, delay.
 - **UI builder** de automação tipo "assistente por passos".
@@ -79,6 +85,7 @@ Antes de qualquer feature, montar o esqueleto.
 - **Documentação OpenAPI** navegável.
 
 ### Aceite
+
 - Automação "card movido → atribui comercial + envia WhatsApp" funciona de ponta a ponta em menos de 10s.
 - Log de execuções permite diagnosticar falhas.
 - SLA estourado gera notificação e é visível no relatório.
@@ -86,6 +93,7 @@ Antes de qualquer feature, montar o esqueleto.
 - Testes cobrem todos os action handlers.
 
 ### Riscos / atenções
+
 - UI de builder de automação é grande — começar com flow linear (sem branch) e evoluir.
 - Evolution API instável ou número banido: tratar como falha recuperável com log visível.
 - Cuidado com loops infinitos de automação (A move → B move → A move). Implementar limite de profundidade por cadeia (default: 5).
@@ -97,6 +105,7 @@ Antes de qualquer feature, montar o esqueleto.
 **Objetivo**: tirar dependências externas, cobrir casos de atendimento/CRM leve.
 
 ### Escopo (requisitos **1.5**)
+
 - **Formulários públicos** (gera card, pode disparar automação).
 - **WhatsApp bidirecional**: recebe mensagem, cria card ou comentário.
 - **Webhooks** de entrada e saída.
@@ -110,6 +119,7 @@ Antes de qualquer feature, montar o esqueleto.
 - **Simulador** de automação (dry-run).
 
 ### Aceite
+
 - Formulário público recebe submissões e dispara automação.
 - Webhook entrada de Evolution cria cards a partir de mensagens recebidas.
 - Dashboard útil o suficiente para 1 gestor acompanhar equipe sem ferramenta externa.
@@ -123,6 +133,7 @@ Antes de qualquer feature, montar o esqueleto.
 **Objetivo (quando retomar)**: abrir para fora. Estes são os itens específicos de SaaS — o produto em si já deve estar maduro.
 
 ### Escopo (requisitos **2**)
+
 - **Cadastro público** + verificação de e-mail.
 - **Onboarding** guiado com templates recomendados.
 - **Planos + billing** (Stripe): FREE, PRO, ENTERPRISE.
@@ -140,6 +151,7 @@ Antes de qualquer feature, montar o esqueleto.
 - **Page de status** público.
 
 ### Aceite
+
 - Novo cliente consegue criar conta, pagar, onboarding e usar em < 10 min.
 - Importação Trello traz ≥ 95% dos dados (cards, listas, checklists, comentários, anexos).
 - Cobrança automática testada com Stripe em modo test + live.
@@ -156,14 +168,14 @@ Antes de qualquer feature, montar o esqueleto.
 
 ## Marcos (milestones) sugeridos
 
-| Marco | Quando | Evidência |
-|---|---|---|
-| M1 — Fundação ok | Fim da semana 1 | CI verde, dev env rodando |
-| M2 — Quadro usável | Fim da semana 5 | 1 equipe testando |
-| M3 — MVP entregue | Fim da semana 9 | 5 equipes usando internamente |
-| M4 — Automações + WhatsApp | MVP + 7 | Primeira automação em produção |
-| M5 — Dashboard e formulários | M4 + 6 | CRM leve funcionando |
-| M6 — SaaS go-live | M5 + 8 | Primeiro cliente pagante |
+| Marco                        | Quando          | Evidência                      |
+| ---------------------------- | --------------- | ------------------------------ |
+| M1 — Fundação ok             | Fim da semana 1 | CI verde, dev env rodando      |
+| M2 — Quadro usável           | Fim da semana 5 | 1 equipe testando              |
+| M3 — MVP entregue            | Fim da semana 9 | 5 equipes usando internamente  |
+| M4 — Automações + WhatsApp   | MVP + 7         | Primeira automação em produção |
+| M5 — Dashboard e formulários | M4 + 6          | CRM leve funcionando           |
+| M6 — SaaS go-live            | M5 + 8          | Primeiro cliente pagante       |
 
 ## Checklist de execução (usar como tracker)
 

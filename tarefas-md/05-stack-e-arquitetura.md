@@ -2,32 +2,32 @@
 
 ## Decisão de stack
 
-| Camada | Escolha | Por quê |
-|---|---|---|
-| Linguagem | **TypeScript** (strict) em todo o monorepo | Tipos compartilhados frontend/backend, contrato garantido |
-| Frontend | **Next.js 15 App Router** + React 19 | SSR/SSG onde útil, ecossistema forte, já padrão dos outros sistemas Kharis |
-| UI | **Tailwind CSS** + **shadcn/ui** + **Radix Primitives** | Velocidade + acessibilidade nativa |
-| Drag & Drop | **@dnd-kit** | Mais ergonômico e acessível que react-beautiful-dnd (abandonado) |
-| Rich text | **Tiptap** (ProseMirror) | Schema controlado, JSON serializável, extensível para collaboration |
-| Estado servidor | **TanStack Query v5** | Cache, optimistic UI, invalidation |
-| Estado cliente | **Zustand** para estado global leve (tema, presença) | Simples, sem boilerplate |
-| Formulários | **react-hook-form** + **Zod** | Validação compartilhada com backend |
-| Backend | **NestJS 11** | Módulos, DI, guards, interceptors, gateways WS — perfeito para domínio com muitos módulos (auth, board, card, automation, integration) |
-| ORM | **Prisma 6** | DX forte, tipo seguro, migrations versionadas |
-| Banco | **PostgreSQL 16** | `jsonb`, `tsvector`, `uuid`, robusto; futuro RLS nativo para SaaS |
-| Cache + Pub/Sub | **Redis 7** | BullMQ, Socket.IO adapter, cache de leitura |
-| Filas | **BullMQ** | Retry exponencial, prioridades, delayed jobs, cron jobs — padrão de facto Node |
-| Real-time | **Socket.IO 4** + adapter Redis | Funciona em polling fallback, escalável |
-| Storage | **S3-compatible** (MinIO dev, DO Spaces/R2/S3 prod) | Padrão, barato, SDKs maduros |
-| E-mail | **Resend** ou **AWS SES** (MVP com Mailpit em dev) | Transacional confiável |
-| WhatsApp | **Evolution API** (serviço externo que você já usa) | Integração via REST, webhook, compatível com Baileys |
-| Auth | **Próprio** (access JWT 15min + refresh httpOnly) | Controle total; NextAuth introduz acoplamentos desconfortáveis em multi-tenant |
-| Validação | **Zod** no front, **Zod** (ou class-validator) no backend | Single source of truth via types |
-| Testes | **Vitest** (unit), **Playwright** (e2e), **Supertest** (api) | Rápido, moderno |
-| Monorepo | **pnpm workspaces + Turborepo** | Cache incremental, tasks paralelas |
-| Container | **Docker Compose** (dev), imagens OCI em prod | Reprodutível |
-| CI/CD | **GitHub Actions** | Padrão do time |
-| Observabilidade | **Pino** logs + **OpenTelemetry** + **Sentry** + **Grafana/Prometheus** | Stack aberto, fácil de evoluir |
+| Camada          | Escolha                                                                 | Por quê                                                                                                                                |
+| --------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Linguagem       | **TypeScript** (strict) em todo o monorepo                              | Tipos compartilhados frontend/backend, contrato garantido                                                                              |
+| Frontend        | **Next.js 15 App Router** + React 19                                    | SSR/SSG onde útil, ecossistema forte, já padrão dos outros sistemas Kharis                                                             |
+| UI              | **Tailwind CSS** + **shadcn/ui** + **Radix Primitives**                 | Velocidade + acessibilidade nativa                                                                                                     |
+| Drag & Drop     | **@dnd-kit**                                                            | Mais ergonômico e acessível que react-beautiful-dnd (abandonado)                                                                       |
+| Rich text       | **Tiptap** (ProseMirror)                                                | Schema controlado, JSON serializável, extensível para collaboration                                                                    |
+| Estado servidor | **TanStack Query v5**                                                   | Cache, optimistic UI, invalidation                                                                                                     |
+| Estado cliente  | **Zustand** para estado global leve (tema, presença)                    | Simples, sem boilerplate                                                                                                               |
+| Formulários     | **react-hook-form** + **Zod**                                           | Validação compartilhada com backend                                                                                                    |
+| Backend         | **NestJS 11**                                                           | Módulos, DI, guards, interceptors, gateways WS — perfeito para domínio com muitos módulos (auth, board, card, automation, integration) |
+| ORM             | **Prisma 6**                                                            | DX forte, tipo seguro, migrations versionadas                                                                                          |
+| Banco           | **PostgreSQL 16**                                                       | `jsonb`, `tsvector`, `uuid`, robusto; futuro RLS nativo para SaaS                                                                      |
+| Cache + Pub/Sub | **Redis 7**                                                             | BullMQ, Socket.IO adapter, cache de leitura                                                                                            |
+| Filas           | **BullMQ**                                                              | Retry exponencial, prioridades, delayed jobs, cron jobs — padrão de facto Node                                                         |
+| Real-time       | **Socket.IO 4** + adapter Redis                                         | Funciona em polling fallback, escalável                                                                                                |
+| Storage         | **S3-compatible** (MinIO dev, DO Spaces/R2/S3 prod)                     | Padrão, barato, SDKs maduros                                                                                                           |
+| E-mail          | **Resend** ou **AWS SES** (MVP com Mailpit em dev)                      | Transacional confiável                                                                                                                 |
+| WhatsApp        | **Evolution API** (serviço externo que você já usa)                     | Integração via REST, webhook, compatível com Baileys                                                                                   |
+| Auth            | **Próprio** (access JWT 15min + refresh httpOnly)                       | Controle total; NextAuth introduz acoplamentos desconfortáveis em multi-tenant                                                         |
+| Validação       | **Zod** no front, **Zod** (ou class-validator) no backend               | Single source of truth via types                                                                                                       |
+| Testes          | **Vitest** (unit), **Playwright** (e2e), **Supertest** (api)            | Rápido, moderno                                                                                                                        |
+| Monorepo        | **pnpm workspaces + Turborepo**                                         | Cache incremental, tasks paralelas                                                                                                     |
+| Container       | **Docker Compose** (dev), imagens OCI em prod                           | Reprodutível                                                                                                                           |
+| CI/CD           | **GitHub Actions**                                                      | Padrão do time                                                                                                                         |
+| Observabilidade | **Pino** logs + **OpenTelemetry** + **Sentry** + **Grafana/Prometheus** | Stack aberto, fácil de evoluir                                                                                                         |
 
 ### Alternativas consideradas e descartadas
 
@@ -179,6 +179,7 @@ Service.moveCard()
 ## Engine de Automações
 
 Contrato:
+
 ```ts
 type Trigger =
   | { type: 'CARD_MOVED_TO_LIST'; params: { listId: string } }
@@ -214,6 +215,7 @@ type Action =
 ```
 
 **Fluxo de execução**:
+
 1. Evento de domínio → `AutomationDispatcher` filtra automations `isEnabled` que casem com o `Trigger`.
 2. Enfileira job `automation:run` com `{automationId, context}`.
 3. Worker carrega automation, avalia `conditions`, se passa executa `actions` sequencialmente (com suporte a `DELAY` via `bull.add({ delay })`).
@@ -243,6 +245,7 @@ type Action =
 ## Tenant isolation
 
 Middleware `TenantContextMiddleware` em todas as rotas autenticadas:
+
 1. Extrai `organizationId` do header `X-Org-Id` (que o frontend sempre envia) ou do default do usuário.
 2. Valida via `Membership` que o usuário pertence à Org.
 3. Popula `req.tenant = {organizationId, membership}` (inclui `Membership.role`).
@@ -252,6 +255,7 @@ Todo service recebe `req.tenant` via decorator `@CurrentOrg()`. Services **nunca
 ### BoardRoleGuard (resolução de permissão de quadro)
 
 Pseudocódigo:
+
 ```ts
 resolveBoardPermission(user, board, required: BoardRole) {
   const membership = await getMembership(user.id, board.organizationId);
@@ -285,28 +289,29 @@ services:
   postgres:
     image: postgres:16-alpine
     environment: { POSTGRES_DB: kharis_tarefas, POSTGRES_USER: dev, POSTGRES_PASSWORD: dev }
-    ports: [ "5432:5432" ]
-    volumes: [ pgdata:/var/lib/postgresql/data ]
+    ports: ['5432:5432']
+    volumes: [pgdata:/var/lib/postgresql/data]
 
   redis:
     image: redis:7-alpine
-    ports: [ "6379:6379" ]
+    ports: ['6379:6379']
 
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
     environment: { MINIO_ROOT_USER: minio, MINIO_ROOT_PASSWORD: miniominio }
-    ports: [ "9000:9000", "9001:9001" ]
-    volumes: [ miniodata:/data ]
+    ports: ['9000:9000', '9001:9001']
+    volumes: [miniodata:/data]
 
   mailpit:
     image: axllent/mailpit
-    ports: [ "1025:1025", "8025:8025" ]
+    ports: ['1025:1025', '8025:8025']
 
 volumes: { pgdata: {}, miniodata: {} }
 ```
 
 Scripts pnpm raiz:
+
 - `pnpm dev` → `turbo run dev` (sobe web + api + workers)
 - `pnpm infra:up` / `pnpm infra:down`
 - `pnpm db:migrate` / `pnpm db:seed`

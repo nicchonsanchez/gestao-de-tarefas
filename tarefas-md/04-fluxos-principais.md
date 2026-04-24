@@ -34,6 +34,7 @@ Descrições ponta-a-ponta das interações críticas. Foco em: gatilho, passos 
 ## F-03 — Criar, mover e editar card (fluxo mais crítico)
 
 ### Criar card rápido
+
 1. Usuário clica "+ Adicionar card" no fim da lista → input aparece.
 2. Digita título, Enter → requisição `POST /cards` com `listId`, `title`. Cliente aplica **optimistic update** (card aparece imediatamente com id temporário).
 3. Backend cria Card com `position = max(position das cards) + 1024` → responde com id real.
@@ -41,6 +42,7 @@ Descrições ponta-a-ponta das interações críticas. Foco em: gatilho, passos 
 5. Backend emite `board:{boardId}` → `card.created` para outros usuários conectados.
 
 ### Mover card (drag & drop)
+
 1. Usuário arrasta card da Lista A (pos 2048) para Lista B entre os cards nas posições 1000 e 2000.
 2. Cliente calcula `position = (1000 + 2000) / 2 = 1500` e aplica UI otimista.
 3. `PATCH /cards/{id}` com `{ listId, position }`.
@@ -53,6 +55,7 @@ Descrições ponta-a-ponta das interações críticas. Foco em: gatilho, passos 
 **Edge**: reordenação extrema → job `rebalance-positions` roda quando `|pos_i - pos_{i+1}| < 1e-6`.
 
 ### Editar descrição
+
 1. Abre detalhe do card → editor Tiptap carrega `description` (JSON).
 2. Debounce 800ms no salvamento → `PATCH /cards/{id}` com descrição.
 3. WS propaga; outros veem descrição atualizada (sem CRDT no MVP — se dois editam, o último vence, com aviso visual).
@@ -200,12 +203,12 @@ Regra geral: cada papel só atribui papéis **iguais ou inferiores ao seu**.
 
 **Matriz resumo de quem pode definir o quê:**
 
-| Actor / Alvo | → OWNER | → ADMIN | → GESTOR | → MEMBER | → GUEST |
-|---|:---:|:---:|:---:|:---:|:---:|
-| OWNER | ✅ (transfer) | ✅ | ✅ | ✅ | ✅ |
-| ADMIN | ❌ | ✅ (promover) / ❌ (rebaixar outro) | ✅ | ✅ | ✅ |
-| GESTOR | ❌ | ❌ | ✅ | ✅ | ✅ |
-| MEMBER / GUEST | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Actor / Alvo   |    → OWNER    |               → ADMIN               | → GESTOR | → MEMBER | → GUEST |
+| -------------- | :-----------: | :---------------------------------: | :------: | :------: | :-----: |
+| OWNER          | ✅ (transfer) |                 ✅                  |    ✅    |    ✅    |   ✅    |
+| ADMIN          |      ❌       | ✅ (promover) / ❌ (rebaixar outro) |    ✅    |    ✅    |   ✅    |
+| GESTOR         |      ❌       |                 ❌                  |    ✅    |    ✅    |   ✅    |
+| MEMBER / GUEST |      ❌       |                 ❌                  |    ❌    |    ❌    |   ❌    |
 
 ---
 
@@ -222,22 +225,22 @@ Regra geral: cada papel só atribui papéis **iguais ou inferiores ao seu**.
 
 ## Matriz de permissões (resumo)
 
-| Ação | OWNER | ADMIN | GESTOR | MEMBER | GUEST |
-|---|---|---|---|---|---|
-| Criar quadro | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Gerenciar membros da Org (convidar/remover/alterar papel) | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Configurar integrações (Evolution, Drive, SMTP) | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Ver **todos** os quadros da Org (incl. privados onde não é BoardMember) | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Editar qualquer quadro como BoardAdmin implícito (automações, listas, cards, membros do quadro) | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Editar quadros onde é BoardMember | (já é Admin implícito) | (já é Admin implícito) | (já é Admin implícito) | conforme BoardRole | conforme BoardRole |
-| Billing / planos (pós-SaaS) | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Deletar Org | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Transferir `OWNER` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Ação                                                                                            | OWNER                  | ADMIN                  | GESTOR                 | MEMBER             | GUEST              |
+| ----------------------------------------------------------------------------------------------- | ---------------------- | ---------------------- | ---------------------- | ------------------ | ------------------ |
+| Criar quadro                                                                                    | ✅                     | ✅                     | ✅                     | ✅                 | ❌                 |
+| Gerenciar membros da Org (convidar/remover/alterar papel)                                       | ✅                     | ✅                     | ❌                     | ❌                 | ❌                 |
+| Configurar integrações (Evolution, Drive, SMTP)                                                 | ✅                     | ✅                     | ❌                     | ❌                 | ❌                 |
+| Ver **todos** os quadros da Org (incl. privados onde não é BoardMember)                         | ✅                     | ✅                     | ✅                     | ❌                 | ❌                 |
+| Editar qualquer quadro como BoardAdmin implícito (automações, listas, cards, membros do quadro) | ✅                     | ✅                     | ✅                     | ❌                 | ❌                 |
+| Editar quadros onde é BoardMember                                                               | (já é Admin implícito) | (já é Admin implícito) | (já é Admin implícito) | conforme BoardRole | conforme BoardRole |
+| Billing / planos (pós-SaaS)                                                                     | ✅                     | ✅                     | ❌                     | ❌                 | ❌                 |
+| Deletar Org                                                                                     | ✅                     | ❌                     | ❌                     | ❌                 | ❌                 |
+| Transferir `OWNER`                                                                              | ✅                     | ❌                     | ❌                     | ❌                 | ❌                 |
 
-| Ação no quadro | BOARD ADMIN | EDITOR | COMMENTER | VIEWER |
-|---|---|---|---|---|
-| Editar config do quadro | ✅ | ❌ | ❌ | ❌ |
-| Criar/mover/editar cards | ✅ | ✅ | ❌ | ❌ |
-| Comentar | ✅ | ✅ | ✅ | ❌ |
-| Ver | ✅ | ✅ | ✅ | ✅ |
-| Criar automações | ✅ | ❌ | ❌ | ❌ |
+| Ação no quadro           | BOARD ADMIN | EDITOR | COMMENTER | VIEWER |
+| ------------------------ | ----------- | ------ | --------- | ------ |
+| Editar config do quadro  | ✅          | ❌     | ❌        | ❌     |
+| Criar/mover/editar cards | ✅          | ✅     | ❌        | ❌     |
+| Comentar                 | ✅          | ✅     | ✅        | ❌     |
+| Ver                      | ✅          | ✅     | ✅        | ✅     |
+| Criar automações         | ✅          | ❌     | ❌        | ❌     |

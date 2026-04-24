@@ -9,6 +9,7 @@ Nomes de entidades em **PascalCase**, campos em **camelCase**. Todo modelo multi
 ## Auth / Conta
 
 ### User
+
 ```prisma
 model User {
   id              String   @id @default(cuid())
@@ -36,7 +37,9 @@ model User {
 ```
 
 ### Session
+
 Refresh token persistido para permitir revogação ("logout em todas as sessões").
+
 ```prisma
 model Session {
   id          String   @id @default(cuid())
@@ -52,6 +55,7 @@ model Session {
 ```
 
 ### ApiToken
+
 ```prisma
 model ApiToken {
   id             String   @id @default(cuid())
@@ -71,6 +75,7 @@ model ApiToken {
 ## Organização (Tenant)
 
 ### Organization
+
 ```prisma
 model Organization {
   id          String   @id @default(cuid())
@@ -97,6 +102,7 @@ model Organization {
 ```
 
 ### Membership (User ↔ Organization com papel)
+
 ```prisma
 model Membership {
   id             String   @id @default(cuid())
@@ -114,6 +120,7 @@ model Membership {
 ```
 
 ### Invitation
+
 ```prisma
 model Invitation {
   id             String   @id @default(cuid())
@@ -133,6 +140,7 @@ model Invitation {
 ## Boards
 
 ### Board
+
 ```prisma
 model Board {
   id             String     @id @default(cuid())
@@ -162,6 +170,7 @@ model Board {
 ```
 
 ### BoardMember
+
 ```prisma
 model BoardMember {
   id        String     @id @default(cuid())
@@ -178,7 +187,9 @@ model BoardMember {
 ```
 
 ### List (Coluna)
+
 Ordenação via float `position` (clássico trick para permitir inserção entre dois sem reindexar o mundo; reindexa periodicamente se diferença < epsilon).
+
 ```prisma
 model List {
   id         String  @id @default(cuid())
@@ -203,6 +214,7 @@ model List {
 ## Cards
 
 ### Card
+
 ```prisma
 model Card {
   id             String   @id @default(cuid())
@@ -248,6 +260,7 @@ model Card {
 ```
 
 ### CardMember (responsáveis)
+
 ```prisma
 model CardMember {
   cardId String
@@ -260,6 +273,7 @@ model CardMember {
 ```
 
 ### CardDependency
+
 ```prisma
 model CardDependency {
   id           String  @id @default(cuid())
@@ -275,7 +289,9 @@ model CardDependency {
 ## Labels
 
 ### Label
+
 Pode ser da Org (reutilizável entre quadros) ou do Board (escopo local). `boardId` nullable diferencia.
+
 ```prisma
 model Label {
   id             String  @id @default(cuid())
@@ -292,6 +308,7 @@ model Label {
 ```
 
 ### CardLabel
+
 ```prisma
 model CardLabel {
   cardId  String
@@ -306,6 +323,7 @@ model CardLabel {
 ## Checklists
 
 ### Checklist
+
 ```prisma
 model Checklist {
   id        String  @id @default(cuid())
@@ -320,6 +338,7 @@ model Checklist {
 ```
 
 ### ChecklistItem
+
 ```prisma
 model ChecklistItem {
   id          String   @id @default(cuid())
@@ -339,6 +358,7 @@ model ChecklistItem {
 ## Anexos
 
 ### Attachment
+
 ```prisma
 model Attachment {
   id          String   @id @default(cuid())
@@ -360,6 +380,7 @@ model Attachment {
 ## Comentários
 
 ### Comment
+
 ```prisma
 model Comment {
   id        String   @id @default(cuid())
@@ -379,6 +400,7 @@ model Comment {
 ## Campos Personalizados
 
 ### CustomField
+
 ```prisma
 model CustomField {
   id         String   @id @default(cuid())
@@ -397,6 +419,7 @@ model CustomField {
 ```
 
 ### CustomFieldValue
+
 ```prisma
 model CustomFieldValue {
   id        String  @id @default(cuid())
@@ -418,6 +441,7 @@ model CustomFieldValue {
 ## Automações
 
 ### Automation
+
 ```prisma
 model Automation {
   id          String   @id @default(cuid())
@@ -437,6 +461,7 @@ model Automation {
 ```
 
 ### AutomationRun
+
 ```prisma
 model AutomationRun {
   id           String   @id @default(cuid())
@@ -456,7 +481,9 @@ model AutomationRun {
 ## Atividade / Audit Log
 
 ### Activity
+
 Registro imutável de qualquer ação. Usado na timeline do card/quadro e em triggers de automação.
+
 ```prisma
 model Activity {
   id             String   @id @default(cuid())
@@ -480,6 +507,7 @@ model Activity {
 ## Notificações
 
 ### Notification
+
 ```prisma
 model Notification {
   id             String   @id @default(cuid())
@@ -501,6 +529,7 @@ model Notification {
 ```
 
 ### NotificationPreference
+
 ```prisma
 model NotificationPreference {
   id             String   @id @default(cuid())
@@ -515,6 +544,7 @@ model NotificationPreference {
 ## Formulários
 
 ### Form
+
 ```prisma
 model Form {
   id             String   @id @default(cuid())
@@ -535,6 +565,7 @@ model Form {
 ```
 
 ### FormSubmission
+
 ```prisma
 model FormSubmission {
   id        String   @id @default(cuid())
@@ -549,6 +580,7 @@ model FormSubmission {
 ## Templates
 
 ### Template
+
 ```prisma
 model Template {
   id             String   @id @default(cuid())
@@ -564,6 +596,7 @@ model Template {
 ## Time Tracking
 
 ### TimeEntry
+
 ```prisma
 model TimeEntry {
   id        String   @id @default(cuid())
@@ -583,6 +616,7 @@ model TimeEntry {
 ## Integrações
 
 ### Integration
+
 ```prisma
 model Integration {
   id             String   @id @default(cuid())
@@ -598,7 +632,9 @@ model Integration {
 ```
 
 ### MessageTemplate
+
 Usado em ações de automação (WhatsApp, e-mail).
+
 ```prisma
 model MessageTemplate {
   id             String   @id @default(cuid())
@@ -613,7 +649,9 @@ model MessageTemplate {
 ```
 
 ### WhatsAppMessage
+
 Log do que foi enviado/recebido.
+
 ```prisma
 model WhatsAppMessage {
   id            String   @id @default(cuid())
@@ -637,6 +675,7 @@ model WhatsAppMessage {
 ```
 
 ### Webhook
+
 ```prisma
 model Webhook {
   id             String   @id @default(cuid())
