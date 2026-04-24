@@ -43,6 +43,47 @@ services:
       retries: 5
     networks: [ktask]
 
+  minio:
+    image: minio/minio:latest
+    container_name: ktask-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # Quando reverse-proxy via Caddy, preservar o host publico
+      MINIO_SERVER_URL: https://${KTASK_CDN_DOMAIN}
+      MINIO_BROWSER_REDIRECT_URL: https://${KTASK_CDN_DOMAIN}/minio/ui
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks: [ktask]
+
+  # Init: cria bucket + policy anonima de leitura (idempotente)
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET:-ktask}
+    entrypoint: >
+      sh -c '
+      set -e;
+      mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD";
+      mc mb --ignore-existing "local/$$S3_BUCKET";
+      mc anonymous set download "local/$$S3_BUCKET";
+      echo "Bucket $$S3_BUCKET ok";
+      '
+    restart: 'no'
+    networks: [ktask]
+
   api:
     build:
       context: ..
@@ -74,6 +115,13 @@ services:
       EVOLUTION_DEFAULT_API_KEY: ${EVOLUTION_DEFAULT_API_KEY:-}
       INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Storage (MinIO S3-compat). Endpoint interno via rede docker; URL publica via Caddy.
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-ktask}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_PUBLIC_URL: https://${KTASK_CDN_DOMAIN}/${S3_BUCKET:-ktask}
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O-', 'http://127.0.0.1:4000/healthz']
       interval: 30s
@@ -127,6 +175,7 @@ services:
     environment:
       KTASK_WEB_DOMAIN: ${KTASK_WEB_DOMAIN}
       KTASK_API_DOMAIN: ${KTASK_API_DOMAIN}
+      KTASK_CDN_DOMAIN: ${KTASK_CDN_DOMAIN}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     networks: [ktask]
 
@@ -137,5 +186,6 @@ networks:
 volumes:
   pgdata:
   redisdata:
+  miniodata:
   caddy_data:
   caddy_config:

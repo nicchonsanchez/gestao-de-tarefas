@@ -51,3 +51,30 @@
 		}
 	}
 }
+
+# ------------- Storage (MinIO S3-compat para avatars/anexos) -------------
+# Uploads via PUT (URL pre-assinada gerada pela API).
+# Leitura publica direta via GET (bucket com policy anonima).
+{$KTASK_CDN_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Imagens publicas: cache agressivo. Uploads usam keys novas a cada vez.
+		Cache-Control "public, max-age=31536000, immutable"
+		-Server
+	}
+
+	# Limite generoso para upload de arquivos (Caddy default 1GB, ajustado pra ficar explicito)
+	request_body {
+		max_size 10MB
+	}
+
+	reverse_proxy minio:9000 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

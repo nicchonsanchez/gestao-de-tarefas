@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,11 +10,11 @@ import {
   type ChangePasswordRequest,
   type UpdateProfileRequest,
 } from '@ktask/contracts';
-import { Eye, EyeOff, Loader2, Save } from 'lucide-react';
+import { Camera, Eye, EyeOff, Loader2, Save, Trash2 } from 'lucide-react';
 
 import { Button, Input, Label } from '@ktask/ui';
 import { UserAvatar } from '@/components/user-avatar';
-import { changePassword, updateProfile } from '@/lib/queries/profile';
+import { changePassword, updateProfile, uploadAvatar } from '@/lib/queries/profile';
 import { useAuthStore } from '@/stores/auth-store';
 import { ApiError } from '@/lib/api-client';
 
@@ -41,14 +41,109 @@ export default function ProfilePage() {
       </header>
 
       <div className="flex flex-col gap-8">
+        <AvatarForm user={user} onChange={(avatarUrl) => setUser({ ...user, avatarUrl })} />
         <ProfileForm
           initial={{ name: user.name }}
           onSuccess={(u) => setUser({ ...user, name: u.name, avatarUrl: u.avatarUrl })}
         />
         <PasswordForm />
-        <AvatarPlaceholder />
       </div>
     </div>
+  );
+}
+
+function AvatarForm({
+  user,
+  onChange,
+}: {
+  user: { id: string; name: string; avatarUrl: string | null };
+  onChange: (url: string | null) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const uploadMut = useMutation({
+    mutationFn: async (file: File) => uploadAvatar(file),
+    onSuccess: (u) => {
+      setError(null);
+      onChange(u.avatarUrl);
+    },
+    onError: (err) => {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Falha ao enviar a imagem.';
+      setError(msg);
+    },
+  });
+
+  const removeMut = useMutation({
+    mutationFn: () => updateProfile({ avatarUrl: null }),
+    onSuccess: () => {
+      setError(null);
+      onChange(null);
+    },
+    onError: (err) => {
+      setError(err instanceof ApiError ? err.message : 'Falha ao remover.');
+    },
+  });
+
+  const busy = uploadMut.isPending || removeMut.isPending;
+
+  return (
+    <Section
+      title="Foto"
+      description="JPG, PNG ou WEBP até 5 MB. A imagem aparece no seu avatar nos cards e comentários."
+    >
+      <div className="flex items-center gap-5">
+        <UserAvatar name={user.name} userId={user.id} avatarUrl={user.avatarUrl} size="xl" />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/avif"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) uploadMut.mutate(f);
+                e.target.value = '';
+              }}
+            />
+            <Button type="button" onClick={() => fileRef.current?.click()} disabled={busy}>
+              {uploadMut.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Camera size={14} />
+              )}
+              {user.avatarUrl ? 'Trocar foto' : 'Enviar foto'}
+            </Button>
+            {user.avatarUrl && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => removeMut.mutate()}
+                disabled={busy}
+                className="text-fg-muted hover:text-danger"
+              >
+                {removeMut.isPending ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Trash2 size={14} />
+                )}
+                Remover
+              </Button>
+            )}
+          </div>
+          {error && <p className="text-danger text-xs">{error}</p>}
+          <p className="text-fg-subtle text-[11px]">
+            A imagem é enviada direto pro storage — nenhum dado sensível trafega pela API.
+          </p>
+        </div>
+      </div>
+    </Section>
   );
 }
 
@@ -175,17 +270,6 @@ function PasswordForm() {
           </Button>
         </div>
       </form>
-    </Section>
-  );
-}
-
-function AvatarPlaceholder() {
-  return (
-    <Section title="Foto" description="Upload de foto fica disponível em breve.">
-      <p className="text-fg-muted text-sm">
-        Por enquanto, seu avatar é gerado a partir das iniciais do seu nome com uma cor fixa. Quando
-        o upload estiver ativo, você vai poder trocar por uma foto aqui mesmo.
-      </p>
     </Section>
   );
 }
