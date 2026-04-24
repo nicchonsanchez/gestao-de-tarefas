@@ -22,10 +22,23 @@ export interface PresignResult {
   expiresIn: number;
 }
 
+/**
+ * Storage S3-compat (MinIO em prod/dev).
+ *
+ * Usamos 2 clients:
+ *  - internalClient: pra operações server→MinIO (delete, stat). Usa o endpoint
+ *    interno (http://minio:9000 na rede Docker). Mais rápido, sem passar por Caddy.
+ *  - presignClient: pra gerar URLs PRÉ-ASSINADAS que o browser vai usar. Usa o
+ *    endpoint público (cdn.ktask.agenciakharis.com.br). Se usarmos o endpoint
+ *    interno aqui, o browser do cliente recebe uma URL com `minio:9000`, que
+ *    obviamente ele não consegue resolver ("Failed to fetch" no client).
+ *  - Em dev sem S3_PUBLIC_ENDPOINT setado, os dois colapsam no mesmo endpoint.
+ */
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
-  private readonly client: S3Client | null;
+  private readonly internalClient: S3Client | null;
+  private readonly presignClient: S3Client | null;
   private readonly publicBase: string | null;
   private readonly bucket: string;
 
@@ -33,28 +46,43 @@ export class StorageService {
     this.bucket = env.S3_BUCKET;
     if (!env.S3_ENDPOINT || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) {
       this.logger.warn('Storage (S3) desabilitado: S3_ENDPOINT/ACCESS_KEY/SECRET_KEY ausentes.');
-      this.client = null;
+      this.internalClient = null;
+      this.presignClient = null;
       this.publicBase = null;
       return;
     }
-    this.client = new S3Client({
+
+    const credentials = {
+      accessKeyId: env.S3_ACCESS_KEY,
+      secretAccessKey: env.S3_SECRET_KEY,
+    };
+
+    this.internalClient = new S3Client({
       region: env.S3_REGION,
       endpoint: env.S3_ENDPOINT,
-      forcePathStyle: true, // MinIO exige path-style
-      credentials: {
-        accessKeyId: env.S3_ACCESS_KEY,
-        secretAccessKey: env.S3_SECRET_KEY,
-      },
+      forcePathStyle: true,
+      credentials,
     });
-    this.publicBase = env.S3_PUBLIC_URL ?? null;
+
+    // Endpoint público usado pra gerar URLs que o browser vai consumir.
+    // Se não setado, usa o mesmo endpoint interno (tipo dev sem reverse-proxy).
+    const publicEndpoint = env.S3_PUBLIC_ENDPOINT ?? env.S3_ENDPOINT;
+    this.presignClient = new S3Client({
+      region: env.S3_REGION,
+      endpoint: publicEndpoint,
+      forcePathStyle: true,
+      credentials,
+    });
+
+    this.publicBase = `${publicEndpoint.replace(/\/+$/, '')}/${this.bucket}`;
   }
 
   isEnabled(): boolean {
-    return this.client !== null;
+    return this.internalClient !== null;
   }
 
   async presignUpload(opts: PresignOptions): Promise<PresignResult> {
-    if (!this.client) {
+    if (!this.presignClient) {
       throw new ServiceUnavailableException('Armazenamento de arquivos não configurado.');
     }
     const ttl = opts.ttl ?? 60;
@@ -66,11 +94,8 @@ export class StorageService {
       Key: key,
       ContentType: opts.contentType,
     });
-    const uploadUrl = await getSignedUrl(this.client, cmd, { expiresIn: ttl });
-
-    // Se há domínio público configurado (via Caddy), usa ele. Senão fallback pro endpoint direto.
-    const publicBase = this.publicBase ?? `${env.S3_ENDPOINT!}/${this.bucket}`;
-    const publicUrl = `${publicBase.replace(/\/+$/, '')}/${key}`;
+    const uploadUrl = await getSignedUrl(this.presignClient, cmd, { expiresIn: ttl });
+    const publicUrl = `${this.publicBase!}/${key}`;
 
     return { uploadUrl, publicUrl, key, expiresIn: ttl };
   }

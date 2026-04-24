@@ -115,13 +115,13 @@ services:
       EVOLUTION_DEFAULT_API_KEY: ${EVOLUTION_DEFAULT_API_KEY:-}
       INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
       SENTRY_DSN: ${SENTRY_DSN:-}
-      # Storage (MinIO S3-compat). Endpoint interno via rede docker; URL publica via Caddy.
+      # Storage (MinIO S3-compat). Endpoint interno via rede docker; endpoint publico via Caddy.
       S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: https://${KTASK_CDN_DOMAIN}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:-ktask}
       S3_ACCESS_KEY: ${MINIO_ROOT_USER}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      S3_PUBLIC_URL: https://${KTASK_CDN_DOMAIN}/${S3_BUCKET:-ktask}
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O-', 'http://127.0.0.1:4000/healthz']
       interval: 30s

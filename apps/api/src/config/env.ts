@@ -34,10 +34,17 @@ const envSchema = z.object({
     .transform((s) => s.split(',').map((o) => o.trim())),
 
   S3_ENDPOINT: optionalUrl(),
+  /**
+   * Endpoint PÚBLICO (acessível pelo browser). Usado pra gerar URLs
+   * pré-assinadas e URLs de leitura. Se omitido, usa S3_ENDPOINT —
+   * só funciona em dev ou quando o storage está exposto diretamente.
+   */
+  S3_PUBLIC_ENDPOINT: optionalUrl(),
   S3_REGION: z.string().default('us-east-1'),
   S3_BUCKET: z.string().default('ktask-attachments'),
   S3_ACCESS_KEY: optionalString(),
   S3_SECRET_KEY: optionalString(),
+  /** @deprecated substituido por S3_PUBLIC_ENDPOINT */
   S3_PUBLIC_URL: optionalUrl(),
 
   EMAIL_FROM: z.string().default('KTask <noreply@ktask.local>'),

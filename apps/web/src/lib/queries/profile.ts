@@ -42,13 +42,20 @@ export async function uploadAvatar(file: File): Promise<UserContract> {
 
   const presign = await presignAvatar(file.type);
 
-  const res = await fetch(presign.uploadUrl, {
-    method: 'PUT',
-    body: file,
-    headers: { 'Content-Type': file.type },
-  });
+  let res: Response;
+  try {
+    res = await fetch(presign.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    });
+  } catch {
+    throw new Error(
+      'Não foi possível enviar a imagem pro servidor de arquivos. Verifique sua conexão e tente de novo.',
+    );
+  }
   if (!res.ok) {
-    throw new Error(`Falha no upload (HTTP ${res.status}).`);
+    throw new Error(`Falha no upload (servidor de arquivos respondeu HTTP ${res.status}).`);
   }
 
   return updateProfile({ avatarUrl: presign.publicUrl });

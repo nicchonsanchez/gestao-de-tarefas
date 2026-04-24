@@ -16,12 +16,7 @@ export class ApiError extends Error {
   body: unknown;
 
   constructor(status: number, body: unknown, message?: string) {
-    super(
-      message ??
-        (typeof body === 'object' && body && 'message' in body
-          ? String((body as { message: unknown }).message)
-          : `HTTP ${status}`),
-    );
+    super(message ?? pickServerMessage(body) ?? defaultMessageForStatus(status));
     this.status = status;
     this.body = body;
   }
@@ -33,6 +28,44 @@ export class ApiError extends Error {
     }
     return null;
   }
+}
+
+/**
+ * Erro em pt-BR pra falhas que ocorrem ANTES do servidor responder
+ * (offline, DNS, certificado, CORS). Nativamente o browser solta
+ * "Failed to fetch" / "Network request failed" que não comunicam nada.
+ */
+export class NetworkError extends Error {
+  readonly cause: unknown;
+  constructor(
+    cause: unknown,
+    message = 'Sem conexão com o servidor. Verifique sua internet e tente de novo.',
+  ) {
+    super(message);
+    this.cause = cause;
+  }
+}
+
+function pickServerMessage(body: unknown): string | null {
+  if (typeof body === 'object' && body && 'message' in body) {
+    const msg = (body as { message: unknown }).message;
+    if (typeof msg === 'string') return msg;
+    if (Array.isArray(msg) && msg.length > 0 && typeof msg[0] === 'string') return msg[0];
+  }
+  return null;
+}
+
+function defaultMessageForStatus(status: number): string {
+  if (status === 400) return 'Requisição inválida.';
+  if (status === 401) return 'Sessão expirada. Entre novamente.';
+  if (status === 403) return 'Você não tem permissão para esta ação.';
+  if (status === 404) return 'Recurso não encontrado.';
+  if (status === 409) return 'Conflito: o recurso já existe ou foi modificado.';
+  if (status === 413) return 'Arquivo grande demais.';
+  if (status === 422) return 'Dados inválidos.';
+  if (status === 429) return 'Muitas tentativas. Aguarde um instante e tente de novo.';
+  if (status >= 500) return 'Erro no servidor. Tente de novo em instantes.';
+  return `Erro inesperado (HTTP ${status}).`;
 }
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -80,17 +113,24 @@ export async function apiFetch<T = unknown>(
 
   const token = skipAuth ? null : useAuthStore.getState().accessToken;
 
-  const res = await fetch(url, {
-    method,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    // fetch() throws TypeError antes de qualquer response (offline, DNS, CORS,
+    // cert). Convertemos pra NetworkError com mensagem em pt-BR.
+    throw new NetworkError(err);
+  }
 
   if (res.status === 401 && !skipAuthRefresh && !skipAuth) {
     const newToken = await refreshToken();
