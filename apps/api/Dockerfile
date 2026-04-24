@@ -27,9 +27,9 @@ RUN pnpm install --frozen-lockfile --prod=false
 
 # ----------------- Stage 4: builder -----------------
 FROM base AS builder
-COPY --from=deps /repo/node_modules ./node_modules
-COPY --from=deps /repo/apps/api/node_modules ./apps/api/node_modules
-COPY --from=deps /repo/packages ./packages
+# Pega toda árvore do stage deps (node_modules em raiz e em packages/*/node_modules)
+COPY --from=deps /repo/ ./
+# Sobrescreve com o source code do pruner (sem apagar os node_modules copiados acima)
 COPY --from=pruner /repo/out/full/ ./
 # Gera o Prisma client e compila
 RUN cd apps/api && pnpm prisma generate
