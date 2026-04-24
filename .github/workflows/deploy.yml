@@ -1,0 +1,84 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wait-ci:
+    name: Aguarda CI passar
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Aguarda job "Lint, Typecheck, Test" do workflow CI
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'Lint, Typecheck, Test'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
+
+  deploy:
+    name: Deploy Hetzner
+    needs: wait-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    steps:
+      - name: Prepara SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEPLOY_HOST_KEY }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Executa deploy remoto
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/ktask
+          echo "--- git pull ---"
+          git fetch --prune origin
+          git reset --hard origin/main
+          echo "--- docker build + up ---"
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/prod.env up -d --build --remove-orphans
+          echo "--- aguardando healthchecks ---"
+          for i in $(seq 1 30); do
+            api_status=$(docker inspect -f '{{.State.Health.Status}}' ktask-api 2>/dev/null || echo starting)
+            web_status=$(docker inspect -f '{{.State.Health.Status}}' ktask-web 2>/dev/null || echo starting)
+            echo "api=$api_status web=$web_status"
+            if [ "$api_status" = "healthy" ] && [ "$web_status" = "healthy" ]; then
+              echo "--- deploy ok ---"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "--- timeout, logs recentes ---"
+          docker logs ktask-api --tail 50 || true
+          docker logs ktask-web --tail 50 || true
+          exit 1
+          REMOTE
+
+      - name: Smoke test HTTPS
+        run: |
+          set -e
+          api_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 https://api.ktask.agenciakharis.com.br/healthz)
+          web_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 https://ktask.agenciakharis.com.br/)
+          echo "api=$api_code web=$web_code"
+          [ "$api_code" = "200" ] && [ "$web_code" = "200" ]
