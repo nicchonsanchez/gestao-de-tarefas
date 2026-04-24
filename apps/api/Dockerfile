@@ -31,8 +31,6 @@ FROM base AS builder
 COPY --from=deps /repo/ ./
 # Sobrescreve com o source code do pruner (sem apagar os node_modules copiados acima)
 COPY --from=pruner /repo/out/full/ ./
-# turbo prune não inclui tsconfig.base.json da raiz, mas os tsconfigs dos packages estendem dele
-COPY --from=pruner /repo/tsconfig.base.json ./tsconfig.base.json
 # Gera o Prisma client e compila
 RUN cd apps/api && pnpm prisma generate
 RUN pnpm turbo run build --filter=@ktask/api
