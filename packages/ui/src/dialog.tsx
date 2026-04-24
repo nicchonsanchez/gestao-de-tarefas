@@ -26,10 +26,16 @@ export const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+export interface DialogContentProps extends React.ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Content
+> {
+  hideClose?: boolean;
+}
+
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  DialogContentProps
+>(({ className, children, hideClose = false, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -43,16 +49,18 @@ export const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close
-        aria-label="Fechar"
-        className={cn(
-          'absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-md',
-          'text-fg-muted hover:bg-bg-muted hover:text-fg transition-colors',
-          'focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2',
-        )}
-      >
-        <X size={16} />
-      </DialogPrimitive.Close>
+      {!hideClose && (
+        <DialogPrimitive.Close
+          aria-label="Fechar"
+          className={cn(
+            'absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-md',
+            'text-fg-muted hover:bg-bg-muted hover:text-fg transition-colors',
+            'focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2',
+          )}
+        >
+          <X size={16} />
+        </DialogPrimitive.Close>
+      )}
     </DialogPrimitive.Content>
   </DialogPortal>
 ));

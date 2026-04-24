@@ -18,6 +18,7 @@ import {
   MoreHorizontal,
   Tag,
   Users,
+  X,
 } from 'lucide-react';
 
 import { Dialog, DialogContent, DialogTitle } from '@ktask/ui';
@@ -50,9 +51,12 @@ export function CardModal({ boardId }: { boardId: string }) {
 
   return (
     <Dialog open={Boolean(cardId)} onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-w-6xl p-0">
+      <DialogContent
+        hideClose
+        className="h-[calc(100vh-4rem)] max-h-[960px] w-[calc(100vw-4rem)] max-w-[1200px] gap-0 overflow-hidden p-0"
+      >
         {query.isLoading && (
-          <div className="flex h-64 items-center justify-center">
+          <div className="flex h-full items-center justify-center">
             <Loader2 size={20} className="text-fg-muted animate-spin" />
           </div>
         )}
@@ -122,9 +126,9 @@ function CardModalContent({
   });
 
   return (
-    <div className="flex max-h-[90vh] flex-col">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-border flex items-start justify-between gap-3 border-b px-6 py-4">
+      <header className="border-border flex items-start justify-between gap-4 border-b px-6 py-4">
         <div className="min-w-0 flex-1">
           <input
             value={title}
@@ -152,13 +156,22 @@ function CardModalContent({
               if (confirm('Arquivar este card?')) archiveMut.mutate();
             }}
           />
+          <div className="bg-border mx-1 h-6 w-px" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="text-fg-muted hover:bg-bg-muted hover:text-fg focus-visible:ring-primary inline-flex size-8 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2"
+          >
+            <X size={16} />
+          </button>
         </div>
       </header>
 
-      {/* Corpo: 2 colunas */}
-      <div className="grid flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_380px]">
+      {/* Corpo: 2 colunas, cada uma com seu scroll */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_400px]">
         {/* Coluna esquerda — dados */}
-        <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5">
+        <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-6 py-5">
           {/* Líder + Equipe + Privacidade */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <MembersInline card={card} />
@@ -299,11 +312,11 @@ function CardModalContent({
         </div>
 
         {/* Coluna direita — Timeline */}
-        <aside className="border-border bg-bg-subtle flex flex-col overflow-hidden border-t md:border-l md:border-t-0">
-          <div className="border-border flex items-center gap-2 border-b px-5 py-3">
+        <aside className="border-border bg-bg-subtle flex min-h-0 flex-col overflow-hidden border-t md:border-l md:border-t-0">
+          <div className="border-border flex shrink-0 items-center gap-2 border-b px-5 py-3">
             <h3 className="text-sm font-semibold">Timeline</h3>
           </div>
-          <div className="flex-1 overflow-hidden px-5 py-3">
+          <div className="flex min-h-0 flex-1 flex-col px-5 py-3">
             <TimelineFeed
               cardId={card.id}
               boardId={boardId}
