@@ -24,6 +24,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from '@ktask/ui';
 import { archiveCard, cardsQueries, updateCard, type CardDetail } from '@/lib/queries/cards';
 import { proseToPlainText } from '@/lib/prose';
+import { UserAvatar } from '@/components/user-avatar';
 import { TimelineFeed } from './timeline-feed';
 
 const PRIORITY_OPTIONS = [
@@ -220,10 +221,15 @@ function CardModalContent({
             {card.members.length === 0 ? (
               <p className="text-fg-muted text-xs">Nenhum contato atribuído.</p>
             ) : (
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-col gap-1.5">
                 {card.members.map((m) => (
                   <li key={m.userId} className="flex items-center gap-2 text-xs">
-                    <MemberAvatar name={m.user.name} />
+                    <UserAvatar
+                      name={m.user.name}
+                      userId={m.user.id}
+                      avatarUrl={m.user.avatarUrl}
+                      size="sm"
+                    />
                     <span className="truncate">{m.user.name}</span>
                   </li>
                 ))}
@@ -627,12 +633,12 @@ function MembersInline({ card }: { card: CardDetail }) {
       <div className="flex items-center gap-1.5">
         <span className="text-fg-muted text-[11px] uppercase tracking-wide">Líder</span>
         {lead ? (
-          <div
-            className="bg-primary-subtle text-primary flex size-6 items-center justify-center rounded-full text-[10px] font-semibold"
-            title={lead.user.name}
-          >
-            {initials(lead.user.name)}
-          </div>
+          <UserAvatar
+            name={lead.user.name}
+            userId={lead.user.id}
+            avatarUrl={lead.user.avatarUrl}
+            size="sm"
+          />
         ) : (
           <span className="text-fg-subtle text-[11px]">—</span>
         )}
@@ -644,42 +650,25 @@ function MembersInline({ card }: { card: CardDetail }) {
         ) : (
           <div className="flex -space-x-1.5">
             {rest.slice(0, 4).map((m) => (
-              <div
+              <UserAvatar
                 key={m.userId}
-                className="border-bg bg-primary-subtle text-primary flex size-6 items-center justify-center rounded-full border-2 text-[10px] font-semibold"
-                title={m.user.name}
-              >
-                {initials(m.user.name)}
-              </div>
+                name={m.user.name}
+                userId={m.user.id}
+                avatarUrl={m.user.avatarUrl}
+                size="sm"
+                stacked
+              />
             ))}
             {rest.length > 4 && (
-              <div className="border-bg bg-bg-muted text-fg-muted flex size-6 items-center justify-center rounded-full border-2 text-[10px] font-semibold">
+              <span className="border-bg bg-bg-muted text-fg-muted inline-flex size-6 shrink-0 select-none items-center justify-center rounded-full border-2 text-[10px] font-semibold">
                 +{rest.length - 4}
-              </div>
+              </span>
             )}
           </div>
         )}
       </div>
     </div>
   );
-}
-
-function MemberAvatar({ name }: { name: string }) {
-  return (
-    <div className="bg-primary-subtle text-primary flex size-6 items-center justify-center rounded-full text-[9px] font-semibold">
-      {initials(name)}
-    </div>
-  );
-}
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 }
 
 function toDatetimeLocal(iso: string): string {

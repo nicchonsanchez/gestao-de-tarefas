@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlertTriangle, Calendar, MessageSquare, CheckSquare, Paperclip } from 'lucide-react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
+import { UserAvatar } from '@/components/user-avatar';
 import type { CardListItem } from '@/lib/queries/boards';
 
 const PRIORITY_COLOR: Record<CardListItem['priority'], string> = {
@@ -142,24 +143,19 @@ function CardInner({ card }: { card: CardListItem }) {
       {card.members.length > 0 && (
         <div className="flex -space-x-1.5">
           {card.members.slice(0, 4).map((m) => (
-            <div
+            <UserAvatar
               key={m.user.id}
-              className="border-bg bg-primary-subtle text-primary flex size-6 items-center justify-center rounded-full border-2 text-[10px] font-semibold"
-              title={m.user.name}
-            >
-              {m.user.name
-                .split(' ')
-                .map((w) => w[0])
-                .filter(Boolean)
-                .slice(0, 2)
-                .join('')
-                .toUpperCase()}
-            </div>
+              name={m.user.name}
+              userId={m.user.id}
+              avatarUrl={m.user.avatarUrl}
+              size="sm"
+              stacked
+            />
           ))}
           {card.members.length > 4 && (
-            <div className="border-bg bg-bg-muted text-fg-muted flex size-6 items-center justify-center rounded-full border-2 text-[10px] font-semibold">
+            <span className="border-bg bg-bg-muted text-fg-muted inline-flex size-6 shrink-0 select-none items-center justify-center rounded-full border-2 text-[10px] font-semibold">
               +{card.members.length - 4}
-            </div>
+            </span>
           )}
         </div>
       )}

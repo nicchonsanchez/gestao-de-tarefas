@@ -15,6 +15,7 @@ import {
 } from '@/lib/queries/cards';
 import { formatRelativeTime, proseToPlainText } from '@/lib/prose';
 import { activityLabel, activityDetail } from '@/lib/activity-format';
+import { UserAvatar } from '@/components/user-avatar';
 import { useAuthStore } from '@/stores/auth-store';
 
 type TabKey = 'all' | 'comments' | 'mine' | 'records';
@@ -194,7 +195,12 @@ function CommentItem({
 
   return (
     <li className="flex gap-2.5">
-      <Avatar name={comment.author.name} />
+      <UserAvatar
+        name={comment.author.name}
+        userId={comment.author.id}
+        avatarUrl={comment.author.avatarUrl}
+        size="md"
+      />
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-2 text-xs">
           <span className="text-fg font-medium">{comment.author.name}</span>
@@ -265,7 +271,13 @@ function ActivityItem({ activity }: { activity: ActivityNode }) {
   const detail = activityDetail(activity);
   return (
     <li className="flex gap-2.5">
-      <Avatar name={actor} muted />
+      <UserAvatar
+        name={actor}
+        userId={activity.actor?.id}
+        avatarUrl={activity.actor?.avatarUrl}
+        size="md"
+        muted={!activity.actor}
+      />
       <div className="min-w-0 flex-1 pt-1">
         <p className="text-xs">
           <span className="text-fg font-medium">{actor}</span>{' '}
@@ -275,24 +287,5 @@ function ActivityItem({ activity }: { activity: ActivityNode }) {
         </p>
       </div>
     </li>
-  );
-}
-
-function Avatar({ name, muted = false }: { name: string; muted?: boolean }) {
-  const initials = name
-    .split(' ')
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-  return (
-    <div
-      className={`flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
-        muted ? 'bg-bg-emphasis text-fg-muted' : 'bg-primary-subtle text-primary'
-      }`}
-    >
-      {initials}
-    </div>
   );
 }
