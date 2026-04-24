@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LoginRequestSchema, type LoginRequest } from '@ktask/contracts';
-import { Loader2, LogIn } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react';
 
 import { Button, Input, Label } from '@ktask/ui';
 import { login } from '@/lib/auth';
@@ -25,6 +25,7 @@ function LoginForm() {
   const params = useSearchParams();
   const { user, initialized } = useAuthStore();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -85,13 +86,26 @@ function LoginForm() {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              error={!!errors.password}
-              {...register('password')}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                error={!!errors.password}
+                className="pr-10"
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                aria-pressed={showPassword}
+                tabIndex={-1}
+                className="text-fg-muted hover:text-fg focus-visible:ring-primary focus-visible:ring-offset-bg absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             {errors.password && <p className="text-danger text-xs">{errors.password.message}</p>}
           </div>
 

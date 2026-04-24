@@ -19,7 +19,7 @@ Antes de qualquer feature, montar o esqueleto.
 - CI GitHub Actions: lint, typecheck, build.
 - ESLint + Prettier + Husky + lint-staged.
 - `packages/contracts` com Zod base.
-- Seed: 1 Org + 1 usuário admin (`admin@kharis.local / admin`).
+- Seed: 1 Org + 1 usuário admin (`desenvolvimento@agenciakharis.com.br / ktask123`).
 
 ### Aceite
 

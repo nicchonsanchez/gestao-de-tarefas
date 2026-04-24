@@ -3,7 +3,7 @@
  *
  * Cria:
  *   - Uma Organização "Kharis" (slug: kharis)
- *   - Um OWNER: admin@kharis.local / senha: ktask123 (trocar no primeiro login)
+ *   - Um OWNER: desenvolvimento@agenciakharis.com.br / senha: ktask123 (trocar no primeiro login)
  *
  * Rodar com: pnpm db:seed (ou pnpm --filter @ktask/api prisma:seed)
  */
@@ -23,10 +23,10 @@ async function main() {
   });
 
   const owner = await prisma.user.upsert({
-    where: { email: 'admin@kharis.local' },
+    where: { email: 'desenvolvimento@agenciakharis.com.br' },
     update: {},
     create: {
-      email: 'admin@kharis.local',
+      email: 'desenvolvimento@agenciakharis.com.br',
       name: 'Admin Kharis',
       passwordHash,
       emailVerifiedAt: new Date(),
@@ -62,7 +62,7 @@ async function main() {
   console.info(`[seed] Membership:   OWNER`);
 
   console.info('\n[seed] Done.');
-  console.info('       Login: admin@kharis.local');
+  console.info('       Login: desenvolvimento@agenciakharis.com.br');
   console.info('       Senha: ktask123 (troque no primeiro login)\n');
 }
 

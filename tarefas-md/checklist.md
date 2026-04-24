@@ -86,7 +86,7 @@ Bootstrap do monorepo e infra local.
 - [x] `packages/ui` — base shadcn + wrappers KTask (Button, Card, Input, Dialog, Label, Badge)
 - [x] `infra/docker-compose.yml` (Postgres 16 na porta **5433**, Redis 7, MinIO, Mailpit)
 - [x] Prisma inicial com models `User`, `Organization`, `Membership`, `Invitation`, `Session`
-- [x] Primeira migration + seed (Org "Kharis" + OWNER admin@kharis.local)
+- [x] Primeira migration + seed (Org "Kharis" + OWNER desenvolvimento@agenciakharis.com.br)
 - [x] GitHub Actions CI: lint, typecheck, test, build
 - [x] Husky + lint-staged
 - [x] `.env.example` completo (raiz + apps/api + apps/web)

@@ -161,7 +161,7 @@ docker exec ktask-postgres pg_dump -U ktask ktask > backup_$(date +%Y%m%d_%H%M).
 
 ## Credenciais iniciais (pós-seed)
 
-- E-mail: `admin@kharis.local`
+- E-mail: `desenvolvimento@agenciakharis.com.br`
 - Senha: `ktask123` ← **trocar no 1º login**
 
 ## Próximos endurecimentos (não urgentes)

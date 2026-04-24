@@ -22,7 +22,7 @@ pnpm install
 
 # 2. Popular seed (roda automaticamente o DB + migrations antes)
 pnpm dev          # sobe tudo; pode parar (Ctrl+C) após ver web+api prontos
-pnpm db:seed      # em outro terminal, cria Org "Kharis" + OWNER admin@kharis.local
+pnpm db:seed      # em outro terminal, cria Org "Kharis" + OWNER desenvolvimento@agenciakharis.com.br
 
 # 3. Rodar em dev (reuso de infra)
 pnpm dev
@@ -54,7 +54,7 @@ URLs locais:
 
 ### Credenciais seed
 
-- **E-mail**: `admin@kharis.local`
+- **E-mail**: `desenvolvimento@agenciakharis.com.br`
 - **Senha**: `ktask123` (trocar no primeiro login)
 
 ## 📦 Estrutura do monorepo
