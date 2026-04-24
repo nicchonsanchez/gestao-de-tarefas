@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   Archive,
-  CalendarDays,
   CheckCircle2,
   ChevronsUp,
   Copy,
@@ -39,6 +38,7 @@ import { MemberPicker } from './member-picker';
 import { LeadPicker } from './lead-picker';
 import { ChecklistBlock } from './checklist-block';
 import { AttachmentsBlock } from './attachments-block';
+import { DueDatePicker } from './due-date-picker';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Baixa', classes: 'bg-bg-emphasis text-fg-muted' },
@@ -174,7 +174,7 @@ function CardModalContent({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <DueDateInline value={card.dueDate} onChange={(iso) => dueDateMut.mutate(iso)} />
+          <DueDatePicker value={card.dueDate} onChange={(iso) => dueDateMut.mutate(iso)} />
           <StatusBadge isCompleted={isCompleted} />
           <CardMenu
             cardId={card.id}
@@ -255,7 +255,7 @@ function CardModalContent({
             <MemberPicker card={card} boardId={boardId} />
           </Block>
 
-          {/* Prioridade + Prazo */}
+          {/* Prioridade + Lista (prazo mora no header) */}
           <Block icon={<ChevronsUp size={14} />} label="Detalhes">
             <div className="flex flex-col gap-3">
               <div>
@@ -282,30 +282,6 @@ function CardModalContent({
                       </button>
                     );
                   })}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-fg-muted mb-1 text-[11px]">Prazo</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="datetime-local"
-                    value={card.dueDate ? toDatetimeLocal(card.dueDate) : ''}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      dueDateMut.mutate(v ? new Date(v).toISOString() : null);
-                    }}
-                    className="bg-bg border-border focus-visible:ring-primary flex-1 rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2"
-                  />
-                  {card.dueDate && (
-                    <button
-                      type="button"
-                      onClick={() => dueDateMut.mutate(null)}
-                      className="text-fg-muted hover:text-fg text-xs"
-                    >
-                      Limpar
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -446,71 +422,6 @@ function DescriptionEditor({ value, onSave }: { value: string; onSave: (v: strin
           >
             Descartar
           </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DueDateInline({
-  value,
-  onChange,
-}: {
-  value: string | null;
-  onChange: (iso: string | null) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const has = Boolean(value);
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
-          has ? 'bg-primary-subtle text-primary' : 'text-fg-muted hover:text-fg'
-        }`}
-        title="Prazo"
-      >
-        <CalendarDays size={14} />
-        {has && value && (
-          <span>
-            {new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-          </span>
-        )}
-      </button>
-      {open && (
-        <div className="border-border bg-bg absolute right-0 top-8 z-10 flex flex-col gap-2 rounded-md border p-2 shadow-lg">
-          <input
-            autoFocus
-            type="datetime-local"
-            value={value ? toDatetimeLocal(value) : ''}
-            onChange={(e) => {
-              const v = e.target.value;
-              onChange(v ? new Date(v).toISOString() : null);
-            }}
-            className="bg-bg border-border focus-visible:ring-primary rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2"
-          />
-          <div className="flex items-center justify-between gap-2">
-            {has && (
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(null);
-                  setOpen(false);
-                }}
-                className="text-fg-muted hover:text-fg text-[11px]"
-              >
-                Limpar
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="text-primary text-[11px] font-medium"
-            >
-              Fechar
-            </button>
-          </div>
         </div>
       )}
     </div>
@@ -691,12 +602,6 @@ function MembersInline({ card, boardId }: { card: CardDetail; boardId: string })
       </div>
     </div>
   );
-}
-
-function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function plainTextToDoc(text: string): unknown {
