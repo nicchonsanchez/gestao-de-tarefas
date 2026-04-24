@@ -227,8 +227,8 @@ export default function BoardPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-52px)] flex-col">
-      <div className="border-border bg-bg-subtle border-b px-6 py-3">
+    <div className="bg-bg-subtle flex h-[calc(100vh-52px)] flex-col">
+      <div className="border-border bg-bg border-b px-6 py-3">
         <h1 className="text-lg font-semibold">{board.name}</h1>
         {board.description && <p className="text-fg-muted mt-0.5 text-xs">{board.description}</p>}
       </div>
@@ -241,7 +241,7 @@ export default function BoardPage() {
         onDragEnd={handleDragEnd}
       >
         <div className="flex-1 overflow-x-auto overflow-y-hidden">
-          <div className="inline-flex h-full gap-3 p-3">
+          <div className="inline-flex h-full gap-4 p-4">
             {board.lists.map((list) => (
               <ListColumn key={list.id} list={list}>
                 <SortableContext

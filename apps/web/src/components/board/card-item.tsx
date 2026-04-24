@@ -60,7 +60,7 @@ export function CardItem({ card }: { card: CardListItem }) {
       }}
       role="button"
       tabIndex={0}
-      className="bg-bg border-border hover:border-border-strong cursor-pointer rounded-lg border p-3 text-left shadow-sm"
+      className="bg-bg cursor-pointer rounded-lg p-3 text-left shadow-[0_1px_2px_rgba(15,15,20,0.06)] ring-1 ring-black/[0.04] transition-shadow hover:shadow-[0_2px_8px_rgba(15,15,20,0.08)] hover:ring-black/[0.06]"
     >
       <CardInner card={card} />
     </div>
@@ -69,7 +69,7 @@ export function CardItem({ card }: { card: CardListItem }) {
 
 export function CardOverlay({ card }: { card: CardListItem }) {
   return (
-    <div className="bg-bg border-border cursor-grabbing rounded-lg border p-3 shadow-lg">
+    <div className="bg-bg cursor-grabbing rounded-lg p-3 shadow-[0_8px_24px_rgba(15,15,20,0.18)] ring-1 ring-black/10">
       <CardInner card={card} />
     </div>
   );

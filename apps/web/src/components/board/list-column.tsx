@@ -26,14 +26,14 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
   return (
     <div
       ref={setNodeRef}
-      className={`bg-bg-muted flex h-full w-[280px] shrink-0 flex-col rounded-lg ${
-        isOver ? 'ring-primary/50 ring-2' : ''
+      className={`bg-bg border-border/60 flex h-full w-[280px] shrink-0 flex-col rounded-lg border shadow-sm ${
+        isOver ? 'ring-primary/40 ring-2' : ''
       }`}
     >
-      <div className="flex items-center justify-between px-3 pb-1 pt-2">
+      <div className="flex items-center justify-between px-3 pb-1 pt-2.5">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">{list.name}</h2>
-          <span className="bg-bg-emphasis text-fg-muted rounded-full px-1.5 text-xs">
+          <span className="bg-bg-muted text-fg-muted rounded-full px-1.5 text-xs">
             {list.cards.length}
           </span>
         </div>
@@ -47,7 +47,7 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
           <button
             type="button"
             onClick={() => setDraft('')}
-            className="group/add bg-bg-emphasis/60 hover:bg-primary hover:text-primary-fg text-fg-muted flex h-8 w-full items-center justify-center overflow-hidden rounded-md text-xs font-medium transition-all duration-200 hover:h-9 hover:shadow-sm"
+            className="group/add bg-primary-subtle text-primary hover:bg-primary hover:text-primary-fg flex h-8 w-full items-center justify-center overflow-hidden rounded-md text-xs font-medium transition-all duration-200 hover:h-9 hover:shadow-sm"
             aria-label="Adicionar card"
           >
             <span className="flex items-center gap-1.5">

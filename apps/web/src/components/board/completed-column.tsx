@@ -33,7 +33,7 @@ export function CompletedColumn({
         onClick={() => setOpen(true)}
         title={`${completedCount} card${completedCount === 1 ? '' : 's'} finalizado${completedCount === 1 ? '' : 's'} — clique para ver todos`}
         aria-label={`Ver cards finalizados (${completedCount})`}
-        className={`group/completed bg-bg-muted hover:bg-bg-emphasis flex h-full w-14 shrink-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg py-3 transition-all duration-200 hover:w-36 ${
+        className={`group/completed bg-bg border-border/60 flex h-full w-14 shrink-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border py-3 shadow-sm transition-all duration-200 hover:w-36 hover:shadow-md ${
           isOver ? 'ring-accent/60 w-36 ring-2' : ''
         }`}
       >
