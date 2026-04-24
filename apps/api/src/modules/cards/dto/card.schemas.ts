@@ -32,3 +32,25 @@ export type MoveCardRequest = z.infer<typeof MoveCardSchema>;
 
 export const MemberIdSchema = z.object({ userId: z.string().cuid() });
 export const LabelIdSchema = z.object({ labelId: z.string().cuid() });
+
+export const DuplicateCardSchema = z
+  .object({
+    copyDescription: z.boolean().optional(),
+    copyLead: z.boolean().optional(),
+    copyTeam: z.boolean().optional(),
+    copyTags: z.boolean().optional(),
+    copyDueDate: z.boolean().optional(),
+    copyChecklists: z.boolean().optional(),
+    copyAttachments: z.boolean().optional(),
+    copyParent: z.boolean().optional(),
+    count: z.number().int().min(1).max(10).optional(),
+    /** Se omitido, duplica no mesmo board e lista do card original */
+    targetBoardId: z.string().cuid().nullable().optional(),
+    targetListId: z.string().cuid().nullable().optional(),
+  })
+  .default({})
+  .refine((v) => (!v.targetBoardId && !v.targetListId) || (!!v.targetBoardId && !!v.targetListId), {
+    message: 'Informe quadro e coluna de destino juntos.',
+    path: ['targetListId'],
+  });
+export type DuplicateCardRequest = z.infer<typeof DuplicateCardSchema>;

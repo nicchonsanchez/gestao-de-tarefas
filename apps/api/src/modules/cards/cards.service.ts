@@ -339,11 +339,30 @@ export class CardsService {
   }
 
   /**
-   * Duplica o card: copia dados básicos + labels + members + checklists
-   * (com items). Não copia attachments, comments, activities, completedAt.
-   * Insere na mesma lista, logo após o original.
+   * Duplica o card N vezes, com flags pra escolher o que copiar.
+   * Sempre copia: título (com sufixo "(cópia)"), prioridade, descrição se
+   * `copyDescription`, e cria as tarefas como "não feitas" mesmo se a
+   * checklist for copiada. Nunca copia: comments, activities, completedAt.
    */
-  async duplicate(userId: string, tenant: TenantContext, cardId: string) {
+  async duplicate(
+    userId: string,
+    tenant: TenantContext,
+    cardId: string,
+    options: {
+      copyDescription?: boolean;
+      copyLead?: boolean;
+      copyTeam?: boolean;
+      copyTags?: boolean;
+      copyDueDate?: boolean;
+      copyChecklists?: boolean;
+      copyAttachments?: boolean;
+      copyParent?: boolean;
+      count?: number;
+      targetBoardId?: string | null;
+      targetListId?: string | null;
+    } = {},
+  ) {
+    const count = Math.max(1, Math.min(options.count ?? 1, 10));
     const source = await this.prisma.card.findUnique({
       where: { id: cardId },
       include: {
@@ -353,6 +372,7 @@ export class CardsService {
           include: { items: { orderBy: { position: 'asc' } } },
           orderBy: { position: 'asc' },
         },
+        attachments: true,
       },
     });
     if (!source || source.organizationId !== tenant.organizationId) {
@@ -360,97 +380,183 @@ export class CardsService {
     }
     await this.access.assertAccess(userId, source.boardId, tenant, 'EDITOR');
 
-    // Posição: logo após o card origem
-    const next = await this.prisma.card.findFirst({
-      where: {
-        listId: source.listId,
-        isArchived: false,
-        completedAt: null,
-        position: { gt: source.position },
-      },
-      orderBy: { position: 'asc' },
-      select: { position: true },
-    });
-    const position = computeInsertPosition(source.position, next?.position ?? null);
+    // Resolve destino: por padrão é o mesmo board/lista do card original.
+    let destBoardId = source.boardId;
+    let destListId = source.listId;
+    let prevPos: number | null = source.position;
+    let nextPos: number | null = null;
 
-    const copy = await this.prisma.$transaction(async (tx) => {
-      const newCard = await tx.card.create({
-        data: {
-          organizationId: source.organizationId,
-          boardId: source.boardId,
-          listId: source.listId,
-          title: `${source.title} (cópia)`,
-          description: (source.description ?? undefined) as Prisma.InputJsonValue | undefined,
-          priority: source.priority,
-          startDate: source.startDate,
-          dueDate: source.dueDate,
-          estimateMinutes: source.estimateMinutes,
-          position,
-          createdById: userId,
-          leadId: userId, // quem duplicou vira líder
-        },
+    if (options.targetBoardId && options.targetListId) {
+      const destList = await this.prisma.list.findUnique({
+        where: { id: options.targetListId },
       });
-
-      if (source.labels.length > 0) {
-        await tx.cardLabel.createMany({
-          data: source.labels.map((l) => ({ cardId: newCard.id, labelId: l.labelId })),
-          skipDuplicates: true,
-        });
+      if (!destList || destList.boardId !== options.targetBoardId || destList.isArchived) {
+        throw new BadRequestException('Lista destino inválida.');
       }
-
-      if (source.members.length > 0) {
-        await tx.cardMember.createMany({
-          data: source.members.map((m) => ({ cardId: newCard.id, userId: m.userId })),
-          skipDuplicates: true,
-        });
+      const destBoard = await this.prisma.board.findUnique({
+        where: { id: options.targetBoardId },
+      });
+      if (!destBoard || destBoard.organizationId !== tenant.organizationId) {
+        throw new NotFoundException('Quadro destino não encontrado.');
       }
+      await this.access.assertAccess(userId, options.targetBoardId, tenant, 'EDITOR');
 
-      for (const cl of source.checklists) {
-        const createdChecklist = await tx.checklist.create({
+      destBoardId = options.targetBoardId;
+      destListId = options.targetListId;
+
+      // Vai pro fim da lista destino
+      const last = await this.prisma.card.findFirst({
+        where: { listId: destListId, isArchived: false, completedAt: null },
+        orderBy: { position: 'desc' },
+        select: { position: true },
+      });
+      prevPos = last?.position ?? null;
+      nextPos = null;
+    } else {
+      // Mesmo board: insere logo após o card origem
+      const nextAfter = await this.prisma.card.findFirst({
+        where: {
+          listId: source.listId,
+          isArchived: false,
+          completedAt: null,
+          position: { gt: source.position },
+        },
+        orderBy: { position: 'asc' },
+        select: { position: true },
+      });
+      nextPos = nextAfter?.position ?? null;
+    }
+
+    const crossBoard = destBoardId !== source.boardId;
+    const created: Array<{ id: string; title: string }> = [];
+
+    // Quando o destino é OUTRO board, labels específicas do board origem
+    // não fazem sentido. Filtramos pra só copiar as labels Org-globais
+    // (Label.boardId == null). Buscamos os Label refs no banco.
+    const labelDefs =
+      options.copyTags !== false && source.labels.length > 0
+        ? await this.prisma.label.findMany({
+            where: { id: { in: source.labels.map((l) => l.labelId) } },
+            select: { id: true, boardId: true },
+          })
+        : [];
+    const labelsToCopy = crossBoard
+      ? labelDefs.filter((l) => l.boardId === null).map((l) => l.id)
+      : source.labels.map((l) => l.labelId);
+
+    for (let i = 0; i < count; i++) {
+      const position = computeInsertPosition(prevPos, nextPos);
+      prevPos = position;
+
+      const copy = await this.prisma.$transaction(async (tx) => {
+        const newCard = await tx.card.create({
           data: {
-            cardId: newCard.id,
-            title: cl.title,
-            position: cl.position,
+            organizationId: source.organizationId,
+            boardId: destBoardId,
+            listId: destListId,
+            title: count > 1 ? `${source.title} (cópia ${i + 1})` : `${source.title} (cópia)`,
+            description:
+              options.copyDescription !== false
+                ? ((source.description ?? undefined) as Prisma.InputJsonValue | undefined)
+                : undefined,
+            priority: source.priority,
+            startDate: options.copyDueDate !== false ? source.startDate : null,
+            dueDate: options.copyDueDate !== false ? source.dueDate : null,
+            estimateMinutes: source.estimateMinutes,
+            // copyParent só faz sentido se permanecer no mesmo board (parent
+            // é card do mesmo board pelo schema)
+            parentCardId: options.copyParent && !crossBoard ? source.parentCardId : null,
+            position,
+            createdById: userId,
+            leadId: options.copyLead && source.leadId ? source.leadId : userId,
           },
         });
-        if (cl.items.length > 0) {
-          await tx.checklistItem.createMany({
-            data: cl.items.map((it) => ({
-              checklistId: createdChecklist.id,
-              text: it.text,
-              position: it.position,
-              // itens duplicados voltam a ser "não feitos" pra evitar confusão
-              isDone: false,
-              dueDate: it.dueDate,
+
+        if (labelsToCopy.length > 0) {
+          await tx.cardLabel.createMany({
+            data: labelsToCopy.map((labelId) => ({ cardId: newCard.id, labelId })),
+            skipDuplicates: true,
+          });
+        }
+
+        // Equipe = membros excluindo o líder original (que pode ter sido copiado)
+        const teamIds = source.members.map((m) => m.userId).filter((id) => id !== source.leadId);
+        const memberIds: string[] = [];
+        if (options.copyLead && source.leadId) memberIds.push(source.leadId);
+        if (options.copyTeam !== false) memberIds.push(...teamIds);
+        // Garantir o leadId do novo card como membro
+        if (!memberIds.includes(newCard.leadId!)) memberIds.push(newCard.leadId!);
+        if (memberIds.length > 0) {
+          await tx.cardMember.createMany({
+            data: memberIds.map((uid) => ({ cardId: newCard.id, userId: uid })),
+            skipDuplicates: true,
+          });
+        }
+
+        if (options.copyChecklists !== false) {
+          for (const cl of source.checklists) {
+            const createdChecklist = await tx.checklist.create({
+              data: { cardId: newCard.id, title: cl.title, position: cl.position },
+            });
+            if (cl.items.length > 0) {
+              await tx.checklistItem.createMany({
+                data: cl.items.map((it) => ({
+                  checklistId: createdChecklist.id,
+                  text: it.text,
+                  position: it.position,
+                  // tarefas duplicadas voltam pra "não feitas"
+                  isDone: false,
+                  dueDate: it.dueDate,
+                })),
+              });
+            }
+          }
+        }
+
+        if (options.copyAttachments && source.attachments.length > 0) {
+          // Reutilizamos as mesmas chaves de storage: o objeto vive uma vez
+          // mas é referenciado por N anexos. Quando uma das cópias for
+          // removida, o objeto continua disponível pelas outras referências.
+          await tx.attachment.createMany({
+            data: source.attachments.map((a) => ({
+              cardId: newCard.id,
+              uploaderId: userId,
+              fileName: a.fileName,
+              mimeType: a.mimeType,
+              sizeBytes: a.sizeBytes,
+              storageKey: a.storageKey,
+              kind: a.kind,
             })),
           });
         }
-      }
 
-      return newCard;
-    });
+        return newCard;
+      });
 
-    await this.prisma.activity.create({
-      data: {
+      await this.prisma.activity.create({
+        data: {
+          organizationId: source.organizationId,
+          boardId: destBoardId,
+          cardId: copy.id,
+          actorId: userId,
+          type: 'CARD_CREATED',
+          payload: { cardId: copy.id, duplicatedFromId: source.id, title: copy.title },
+        },
+      });
+
+      this.events.emit(EVENT_NAMES.CARD_CREATED, {
+        boardId: destBoardId,
         organizationId: source.organizationId,
-        boardId: source.boardId,
-        cardId: copy.id,
         actorId: userId,
-        type: 'CARD_CREATED',
-        payload: { cardId: copy.id, duplicatedFromId: source.id, title: copy.title },
-      },
-    });
+        cardId: copy.id,
+        listId: destListId,
+        title: copy.title,
+      });
 
-    this.events.emit(EVENT_NAMES.CARD_CREATED, {
-      boardId: source.boardId,
-      organizationId: source.organizationId,
-      actorId: userId,
-      cardId: copy.id,
-      listId: source.listId,
-      title: copy.title,
-    });
+      created.push({ id: copy.id, title: copy.title });
+    }
 
-    return copy;
+    return { count: created.length, cards: created };
   }
 
   async complete(userId: string, tenant: TenantContext, cardId: string) {

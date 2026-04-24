@@ -15,9 +15,11 @@ import {
   MoveCardSchema,
   MemberIdSchema,
   LabelIdSchema,
+  DuplicateCardSchema,
   type CreateCardRequest,
   type UpdateCardRequest,
   type MoveCardRequest,
+  type DuplicateCardRequest,
 } from './dto/card.schemas';
 
 @ApiTags('cards')
@@ -89,13 +91,14 @@ export class CardsController {
   }
 
   @Post(':cardId/duplicate')
-  @ApiOperation({ summary: 'Duplica o card (copia labels, membros, checklists)' })
+  @ApiOperation({ summary: 'Duplica o card N vezes com flags do que copiar' })
   duplicate(
     @CurrentUser() user: AuthenticatedRequestContext,
     @CurrentOrg() org: TenantContext,
     @Param('cardId') cardId: string,
+    @Body(new ZodValidationPipe(DuplicateCardSchema)) body: DuplicateCardRequest,
   ) {
-    return this.cards.duplicate(user.userId, org, cardId);
+    return this.cards.duplicate(user.userId, org, cardId, body);
   }
 
   @Delete(':cardId/permanent')

@@ -82,10 +82,24 @@ export function archiveCard(cardId: string) {
   return api.delete(`/api/v1/cards/${cardId}`);
 }
 
-export function duplicateCard(cardId: string) {
-  return api.post<{ id: string; title: string; listId: string }>(
+export interface DuplicateCardOptions {
+  copyDescription?: boolean;
+  copyLead?: boolean;
+  copyTeam?: boolean;
+  copyTags?: boolean;
+  copyDueDate?: boolean;
+  copyChecklists?: boolean;
+  copyAttachments?: boolean;
+  copyParent?: boolean;
+  count?: number;
+  targetBoardId?: string | null;
+  targetListId?: string | null;
+}
+
+export function duplicateCard(cardId: string, options: DuplicateCardOptions = {}) {
+  return api.post<{ count: number; cards: Array<{ id: string; title: string }> }>(
     `/api/v1/cards/${cardId}/duplicate`,
-    {},
+    options,
   );
 }
 

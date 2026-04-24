@@ -27,7 +27,6 @@ import {
   archiveCard,
   cardsQueries,
   deleteCardPermanent,
-  duplicateCard,
   updateCard,
   type CardDetail,
 } from '@/lib/queries/cards';
@@ -39,6 +38,7 @@ import { LeadPicker } from './lead-picker';
 import { ChecklistBlock } from './checklist-block';
 import { AttachmentsBlock } from './attachments-block';
 import { DueDatePicker } from './due-date-picker';
+import { DuplicateCardDialog } from './duplicate-card-dialog';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Baixa', classes: 'bg-bg-emphasis text-fg-muted' },
@@ -139,10 +139,7 @@ function CardModalContent({
     },
   });
 
-  const duplicateMut = useMutation({
-    mutationFn: () => duplicateCard(card.id),
-    onSuccess: () => invalidate(),
-  });
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
 
   const deleteMut = useMutation({
     mutationFn: () => deleteCardPermanent(card.id),
@@ -179,11 +176,11 @@ function CardModalContent({
           <CardMenu
             cardId={card.id}
             boardId={boardId}
-            busy={duplicateMut.isPending || deleteMut.isPending}
+            busy={deleteMut.isPending}
             onArchive={() => {
               if (confirm('Arquivar este card?')) archiveMut.mutate();
             }}
-            onDuplicate={() => duplicateMut.mutate()}
+            onDuplicate={() => setDuplicateOpen(true)}
             onDelete={() => {
               const confirmation = prompt(
                 `Excluir "${card.title}" permanentemente?\n\nEsta ação é IRREVERSÍVEL — o card, comentários, checklists e anexos serão apagados.\n\nDigite "EXCLUIR" para confirmar:`,
@@ -320,6 +317,8 @@ function CardModalContent({
           </div>
         </aside>
       </div>
+
+      <DuplicateCardDialog card={card} open={duplicateOpen} onOpenChange={setDuplicateOpen} />
     </div>
   );
 }
