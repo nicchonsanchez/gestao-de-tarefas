@@ -9,7 +9,8 @@ ARG PNPM_VERSION=9.15.0
 # ---------------- Stage 1: base ----------------
 FROM node:${NODE_VERSION}-alpine AS base
 RUN apk add --no-cache libc6-compat
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+# npm -g corepack@latest corrige bug de signature em corepacks antigos
+RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /repo
 
 # ---------------- Stage 2: pruner ----------------
@@ -60,7 +61,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 # + /apps/web/.next/static + /apps/web/public (copiados separadamente)
 COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/public ./apps/web/public 2>/dev/null || true
+COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/public ./apps/web/public
 
 USER nextjs
 
