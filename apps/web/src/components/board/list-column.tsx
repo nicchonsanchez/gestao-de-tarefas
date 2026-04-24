@@ -30,7 +30,7 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
         isOver ? 'ring-primary/50 ring-2' : ''
       }`}
     >
-      <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center justify-between px-3 pb-1 pt-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">{list.name}</h2>
           <span className="bg-bg-emphasis text-fg-muted rounded-full px-1.5 text-xs">
@@ -39,21 +39,27 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
         </div>
       </div>
 
-      <div className="flex min-h-[60px] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
-        {children}
-      </div>
-
-      <div className="px-2 pb-2">
+      {/* Botão "Adicionar card" — sempre no topo, estilo Ummense:
+          idle: barra discreta com só ícone no centro
+          hover: expande, cor primária e texto "Adicionar card" */}
+      <div className="px-2 pt-1">
         {draft === null ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
+          <button
+            type="button"
             onClick={() => setDraft('')}
+            className="group/add bg-bg-emphasis/60 hover:bg-primary hover:text-primary-fg text-fg-muted flex h-8 w-full items-center justify-center overflow-hidden rounded-md text-xs font-medium transition-all duration-200 hover:h-9 hover:shadow-sm"
+            aria-label="Adicionar card"
           >
-            <Plus size={14} />
-            Adicionar card
-          </Button>
+            <span className="flex items-center gap-1.5">
+              <Plus
+                size={14}
+                className="transition-transform duration-200 group-hover/add:rotate-90"
+              />
+              <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover/add:max-w-[160px] group-hover/add:opacity-100">
+                Adicionar card
+              </span>
+            </span>
+          </button>
         ) : (
           <form
             onSubmit={(e) => {
@@ -88,6 +94,10 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
             </div>
           </form>
         )}
+      </div>
+
+      <div className="flex min-h-[60px] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 pt-2">
+        {children}
       </div>
     </div>
   );
