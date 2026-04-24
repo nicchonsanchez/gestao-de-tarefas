@@ -1,0 +1,53 @@
+{
+	email {$LETSENCRYPT_EMAIL}
+	# TLS Let's Encrypt automático
+	# Logs em formato JSON vão pro stdout, docker captura
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+# ------------- Web (Next.js) -------------
+{$KTASK_WEB_DOMAIN} {
+	encode zstd gzip
+
+	# Cabeçalhos de segurança
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+
+	# Tudo vai pro container web
+	reverse_proxy web:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# ------------- API + WebSocket (NestJS + Socket.IO) -------------
+{$KTASK_API_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Access-Control-Allow-Credentials "true"
+		-Server
+	}
+
+	# Socket.IO path: deixa o reverse_proxy direcionar (same origin)
+	# Caddy detecta automaticamente WS upgrade via headers padrão
+	reverse_proxy api:4000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		# Timeouts maiores pra WebSocket
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+}

@@ -3,6 +3,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  output: 'standalone',
   transpilePackages: ['@ktask/ui', '@ktask/contracts'],
   images: {
     remotePatterns: [
