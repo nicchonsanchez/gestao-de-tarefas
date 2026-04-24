@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -10,7 +10,10 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
+  closestCenter,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
   type DragOverEvent,
@@ -53,6 +56,23 @@ export default function BoardPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+
+  /**
+   * Estratégia de colisão p/ kanban multi-coluna:
+   *  1. Se o ponteiro está dentro de algum droppable, usa ele (prioriza o mais
+   *     profundo: cards ganham da coluna que os contém). Isso resolve o caso
+   *     da coluna vazia — assim que o cursor entra nela, ela ganha sem ser
+   *     "ofuscada" por cards de outras colunas.
+   *  2. Senão, fallback pra rectIntersection (drag saiu da zona do ponteiro).
+   *  3. Último recurso: closestCenter pra não deixar sem `over`.
+   */
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const pointer = pointerWithin(args);
+    if (pointer.length > 0) return pointer;
+    const rect = rectIntersection(args);
+    if (rect.length > 0) return rect;
+    return closestCenter(args);
+  }, []);
 
   const board = boardQuery.data;
 
@@ -215,7 +235,7 @@ export default function BoardPage() {
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
