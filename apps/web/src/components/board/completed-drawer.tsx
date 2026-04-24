@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, RotateCcw, X } from 'lucide-react';
@@ -22,7 +23,16 @@ export function CompletedDrawer({
   onOpenChange: (v: boolean) => void;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  function openCard(cardId: string) {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set('card', cardId);
+    router.push(`/b/${boardId}?${next.toString()}`, { scroll: false });
+    onOpenChange(false);
+  }
 
   const query = useInfiniteQuery({
     queryKey: ['boards', boardId, 'completed'],
@@ -90,10 +100,16 @@ export function CompletedDrawer({
                 {items.map((c) => (
                   <li
                     key={c.id}
-                    className="border-border bg-bg-subtle flex items-start justify-between gap-3 rounded-lg border p-3"
+                    className="border-border bg-bg-subtle hover:border-border-strong flex items-start justify-between gap-3 rounded-lg border p-3 transition-colors"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{c.title}</p>
+                    <button
+                      type="button"
+                      onClick={() => openCard(c.id)}
+                      className="min-w-0 flex-1 cursor-pointer text-left"
+                    >
+                      <p className="group-hover:text-primary truncate text-sm font-medium">
+                        {c.title}
+                      </p>
                       <div className="text-fg-muted mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                         <span>
                           Finalizado em{' '}
@@ -112,7 +128,7 @@ export function CompletedDrawer({
                           </span>
                         </span>
                       </div>
-                    </div>
+                    </button>
                     <button
                       type="button"
                       onClick={() => restore.mutate(c.id)}
