@@ -26,7 +26,7 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
   return (
     <div
       ref={setNodeRef}
-      className={`bg-bg-muted flex w-[280px] shrink-0 flex-col rounded-lg ${
+      className={`bg-bg-muted flex h-full w-[280px] shrink-0 flex-col rounded-lg ${
         isOver ? 'ring-primary/50 ring-2' : ''
       }`}
     >
@@ -39,7 +39,7 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
         </div>
       </div>
 
-      <div className="flex max-h-[calc(100vh-52px-80px)] flex-col gap-2 overflow-y-auto px-2 pb-2">
+      <div className="flex min-h-[60px] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
         {children}
       </div>
 

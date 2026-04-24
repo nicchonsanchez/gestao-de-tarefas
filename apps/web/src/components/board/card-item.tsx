@@ -99,14 +99,12 @@ function CardInner({ card }: { card: CardListItem }) {
       <p className="line-clamp-3 text-sm font-medium">{card.title}</p>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        {card.priority !== 'MEDIUM' && (
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${PRIORITY_COLOR[card.priority]}`}
-          >
-            {card.priority === 'URGENT' && <AlertTriangle size={10} />}
-            {PRIORITY_LABEL[card.priority]}
-          </span>
-        )}
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${PRIORITY_COLOR[card.priority]}`}
+        >
+          {card.priority === 'URGENT' && <AlertTriangle size={10} />}
+          {PRIORITY_LABEL[card.priority]}
+        </span>
 
         {hasDue && due && (
           <span
