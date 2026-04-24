@@ -146,9 +146,15 @@ Ver detalhes em `06-roadmap-mvp.md`.
 - [x] Zustand store pra session + TanStack Query
 - [ ] Lista de quadros
 - [ ] Tela do quadro (Kanban com dnd-kit)
+- [x] Cabeçalho do fluxo (avatars, privacidade, gear, menu) — ver `15-cabecalho-fluxo.md`
 - [ ] Modal de card
 - [ ] Formulário de convite de membro
 - [ ] Tela de "aceitar convite"
+
+#### Prefigurados pendentes (UI presente, lógica em outra tarefa)
+
+- [ ] Busca por palavra no header do fluxo (input `disabled`) — ligar quando filtro existir
+- [ ] Botão "Filtrar" no header do fluxo (`disabled`) — popover de filtros avançados
 
 ### Interação
 
