@@ -88,6 +88,26 @@ export class CardsController {
     return this.cards.restore(user.userId, org, cardId);
   }
 
+  @Post(':cardId/duplicate')
+  @ApiOperation({ summary: 'Duplica o card (copia labels, membros, checklists)' })
+  duplicate(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('cardId') cardId: string,
+  ) {
+    return this.cards.duplicate(user.userId, org, cardId);
+  }
+
+  @Delete(':cardId/permanent')
+  @ApiOperation({ summary: 'Excluir card permanentemente (irreversível)' })
+  deletePermanent(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('cardId') cardId: string,
+  ) {
+    return this.cards.deletePermanent(user.userId, org, cardId);
+  }
+
   @Post(':cardId/complete')
   @ApiOperation({ summary: 'Finalizar card (entra no histórico do quadro)' })
   complete(

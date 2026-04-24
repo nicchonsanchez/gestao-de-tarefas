@@ -82,6 +82,17 @@ export function archiveCard(cardId: string) {
   return api.delete(`/api/v1/cards/${cardId}`);
 }
 
+export function duplicateCard(cardId: string) {
+  return api.post<{ id: string; title: string; listId: string }>(
+    `/api/v1/cards/${cardId}/duplicate`,
+    {},
+  );
+}
+
+export function deleteCardPermanent(cardId: string) {
+  return api.delete(`/api/v1/cards/${cardId}/permanent`);
+}
+
 export function assignMember(cardId: string, userId: string) {
   return api.post(`/api/v1/cards/${cardId}/members`, { userId });
 }

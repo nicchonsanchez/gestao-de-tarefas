@@ -18,12 +18,20 @@ import {
   MoreHorizontal,
   Paperclip,
   Tag,
+  Trash2,
   Users,
   X,
 } from 'lucide-react';
 
 import { Dialog, DialogContent, DialogTitle } from '@ktask/ui';
-import { archiveCard, cardsQueries, updateCard, type CardDetail } from '@/lib/queries/cards';
+import {
+  archiveCard,
+  cardsQueries,
+  deleteCardPermanent,
+  duplicateCard,
+  updateCard,
+  type CardDetail,
+} from '@/lib/queries/cards';
 import { proseToPlainText } from '@/lib/prose';
 import { UserAvatar } from '@/components/user-avatar';
 import { TimelineFeed } from './timeline-feed';
@@ -131,6 +139,19 @@ function CardModalContent({
     },
   });
 
+  const duplicateMut = useMutation({
+    mutationFn: () => duplicateCard(card.id),
+    onSuccess: () => invalidate(),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => deleteCardPermanent(card.id),
+    onSuccess: () => {
+      invalidate();
+      onClose();
+    },
+  });
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
@@ -158,8 +179,16 @@ function CardModalContent({
           <CardMenu
             cardId={card.id}
             boardId={boardId}
+            busy={duplicateMut.isPending || deleteMut.isPending}
             onArchive={() => {
               if (confirm('Arquivar este card?')) archiveMut.mutate();
+            }}
+            onDuplicate={() => duplicateMut.mutate()}
+            onDelete={() => {
+              const confirmation = prompt(
+                `Excluir "${card.title}" permanentemente?\n\nEsta ação é IRREVERSÍVEL — o card, comentários, checklists e anexos serão apagados.\n\nDigite "EXCLUIR" para confirmar:`,
+              );
+              if (confirmation === 'EXCLUIR') deleteMut.mutate();
             }}
           />
           <div className="bg-border mx-1 h-6 w-px" />
@@ -505,10 +534,16 @@ function CardMenu({
   cardId,
   boardId,
   onArchive,
+  onDuplicate,
+  onDelete,
+  busy,
 }: {
   cardId: string;
   boardId: string;
   onArchive: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -535,7 +570,8 @@ function CardMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="text-fg-muted hover:text-fg focus-visible:ring-primary rounded-md p-1.5 focus-visible:outline-none focus-visible:ring-2"
+        disabled={busy}
+        className="text-fg-muted hover:text-fg focus-visible:ring-primary rounded-md p-1.5 focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
         aria-label="Mais ações"
       >
         <MoreHorizontal size={16} />
@@ -544,7 +580,14 @@ function CardMenu({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="border-border bg-bg absolute right-0 top-full z-20 mt-1 flex w-56 flex-col rounded-md border p-1 text-xs shadow-lg">
-            <MenuItem disabled label="Duplicar card" icon={<Copy size={14} />} />
+            <MenuItem
+              label="Duplicar card"
+              icon={<Copy size={14} />}
+              onClick={() => {
+                setOpen(false);
+                onDuplicate();
+              }}
+            />
             <MenuItem disabled label="Criar card filho" icon={<Copy size={14} />} />
             <MenuItem disabled label="Tornar filho de..." icon={<Copy size={14} />} />
             <div className="border-border my-1 border-t" />
@@ -562,10 +605,18 @@ function CardMenu({
             <MenuItem
               label="Arquivar card"
               icon={<Archive size={14} />}
-              danger
               onClick={() => {
                 setOpen(false);
                 onArchive();
+              }}
+            />
+            <MenuItem
+              label="Excluir card..."
+              icon={<Trash2 size={14} />}
+              danger
+              onClick={() => {
+                setOpen(false);
+                onDelete();
               }}
             />
           </div>
