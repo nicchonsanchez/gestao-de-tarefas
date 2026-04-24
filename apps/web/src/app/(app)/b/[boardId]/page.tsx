@@ -90,6 +90,16 @@ export default function BoardPage() {
     return id.startsWith(LIST_SORT_PREFIX);
   }
 
+  /**
+   * Cada coluna tem 2 IDs no dnd-kit: `col:<listId>` (sortable pra reorder)
+   * e `<listId>` (droppable pra receber cards). Quando o ponteiro está
+   * em cima da coluna, o over.id pode vir de qualquer um dos dois. Pra
+   * drag de CARD, normalizamos tirando o prefixo `col:` se estiver lá.
+   */
+  function normalizeOverForCard(overId: string): string {
+    return overId.startsWith(LIST_SORT_PREFIX) ? overId.slice(LIST_SORT_PREFIX.length) : overId;
+  }
+
   function handleDragStart(event: DragStartEvent) {
     const id = String(event.active.id);
     if (isListDrag(id)) {
@@ -107,14 +117,17 @@ export default function BoardPage() {
     if (!board || !over) return;
 
     const activeId = String(active.id);
-    const overId = String(over.id);
-    if (activeId === overId) return;
+    const rawOverId = String(over.id);
+    if (activeId === rawOverId) return;
 
     // Drag de coluna não afeta listas de cards; reorder é tratado em handleDragEnd
     if (isListDrag(activeId)) return;
 
     // Drop em coluna "Finalizado" é tratado só no handleDragEnd (não move card entre listas)
-    if (overId === COMPLETED_DROPPABLE_ID) return;
+    if (rawOverId === COMPLETED_DROPPABLE_ID) return;
+
+    // Normaliza: se o over.id veio como "col:<listId>", usa só o listId
+    const overId = normalizeOverForCard(rawOverId);
 
     const activeListId = cardIdToListId.get(activeId);
     const overListId = cardIdToListId.get(overId) ?? overId; // overId pode ser um listId
@@ -144,13 +157,13 @@ export default function BoardPage() {
     if (!board || !over) return;
 
     const activeId = String(active.id);
-    const overId = String(over.id);
+    const rawOverId = String(over.id);
 
     // Reorder de colunas (drag horizontal)
     if (isListDrag(activeId)) {
-      if (!isListDrag(overId) || activeId === overId) return;
+      if (!isListDrag(rawOverId) || activeId === rawOverId) return;
       const activeListId = activeId.slice(LIST_SORT_PREFIX.length);
-      const overListId = overId.slice(LIST_SORT_PREFIX.length);
+      const overListId = rawOverId.slice(LIST_SORT_PREFIX.length);
 
       const data = queryClient.getQueryData<BoardDetail>(boardsQueries.detail(boardId).queryKey);
       if (!data) return;
@@ -181,6 +194,9 @@ export default function BoardPage() {
       }
       return;
     }
+
+    // Pra drag de card, normaliza o overId (tira "col:" se veio do sortable da coluna)
+    const overId = normalizeOverForCard(rawOverId);
 
     // Drop na coluna virtual "Finalizado" = finalizar card
     if (overId === COMPLETED_DROPPABLE_ID) {
