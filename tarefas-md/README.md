@@ -14,7 +14,8 @@ Sistema de gestão de tarefas da Kharis, inspirado em **Ummense** (funcional) e 
 8. [07 — Design System](07-design-system.md) — tokens, paleta light/dark, tipografia, componentes, microcopy
 9. [08 — Infra e Deploy](08-infra-e-deploy.md) — AWS + Vercel, domínios, secrets, CI/CD, custos
 10. [09 — Engine de Automações](09-engine-automacoes.md) — contratos, fluxo, segurança, UI builder
-11. [Checklist](checklist.md) — rastreador vivo de decisões e entregas
+11. [10 — Deploy em produção](10-deploy-producao.md) — Hetzner + Caddy + CI/CD GitHub Actions, rollback, ops
+12. [Checklist](checklist.md) — rastreador vivo de decisões e entregas
 
 ## TL;DR
 
