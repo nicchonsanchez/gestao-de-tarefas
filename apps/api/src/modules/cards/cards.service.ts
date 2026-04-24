@@ -25,6 +25,7 @@ interface UpdateCardInput {
   dueDate?: string | null;
   completedAt?: string | null;
   estimateMinutes?: number | null;
+  leadId?: string | null;
 }
 
 interface MoveCardInput {
@@ -64,6 +65,7 @@ export class CardsService {
         startDate: input.startDate ? new Date(input.startDate) : null,
         position,
         createdById: userId,
+        leadId: userId, // Default: quem cria vira líder. Pode ser trocado no modal ou via automação.
       },
     });
 
@@ -97,6 +99,7 @@ export class CardsService {
       where: { id: cardId },
       include: {
         list: { select: { id: true, name: true, boardId: true } },
+        lead: { select: { id: true, name: true, email: true, avatarUrl: true } },
         members: {
           include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
         },
@@ -124,6 +127,28 @@ export class CardsService {
     const card = await this.getCardOrThrow(cardId, tenant.organizationId);
     await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
 
+    // Troca de líder: valida que o user alvo é membro da Org e registra activity específica
+    const leadChanged = input.leadId !== undefined && input.leadId !== card.leadId;
+    if (leadChanged && input.leadId) {
+      const membership = await this.prisma.membership.findUnique({
+        where: {
+          userId_organizationId: {
+            userId: input.leadId,
+            organizationId: tenant.organizationId,
+          },
+        },
+      });
+      if (!membership) {
+        throw new BadRequestException('O novo líder precisa ser membro da organização.');
+      }
+      // Se ainda não era membro do card, vira membro automaticamente
+      await this.prisma.cardMember.upsert({
+        where: { cardId_userId: { cardId, userId: input.leadId } },
+        update: {},
+        create: { cardId, userId: input.leadId },
+      });
+    }
+
     const updated = await this.prisma.card.update({
       where: { id: cardId },
       data: {
@@ -149,19 +174,37 @@ export class CardsService {
               : null
             : undefined,
         estimateMinutes: input.estimateMinutes ?? undefined,
+        leadId: input.leadId !== undefined ? input.leadId : undefined,
       },
     });
 
-    await this.prisma.activity.create({
-      data: {
-        organizationId: tenant.organizationId,
-        boardId: card.boardId,
-        cardId,
-        actorId: userId,
-        type: 'CARD_UPDATED',
-        payload: { cardId, input } as unknown as Prisma.InputJsonValue,
-      },
-    });
+    if (leadChanged) {
+      await this.prisma.activity.create({
+        data: {
+          organizationId: tenant.organizationId,
+          boardId: card.boardId,
+          cardId,
+          actorId: userId,
+          type: 'CARD_LEAD_CHANGED',
+          payload: {
+            cardId,
+            fromLeadId: card.leadId,
+            toLeadId: input.leadId,
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } else {
+      await this.prisma.activity.create({
+        data: {
+          organizationId: tenant.organizationId,
+          boardId: card.boardId,
+          cardId,
+          actorId: userId,
+          type: 'CARD_UPDATED',
+          payload: { cardId, input } as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
 
     this.events.emit(EVENT_NAMES.CARD_UPDATED, {
       boardId: card.boardId,

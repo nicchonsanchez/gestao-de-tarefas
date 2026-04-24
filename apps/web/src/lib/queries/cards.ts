@@ -15,6 +15,8 @@ export interface CardDetail {
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
+  leadId: string | null;
+  lead: { id: string; name: string; email: string; avatarUrl: string | null } | null;
   list: { id: string; name: string; boardId: string };
   members: Array<{
     cardId: string;
@@ -80,6 +82,7 @@ export interface UpdateCardInput {
   dueDate?: string | null;
   completedAt?: string | null;
   estimateMinutes?: number | null;
+  leadId?: string | null;
 }
 
 export function updateCard(cardId: string, input: UpdateCardInput) {

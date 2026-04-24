@@ -76,6 +76,7 @@ enum ActivityType {
   CARD_UNCOMPLETED
   CARD_ASSIGNED
   CARD_UNASSIGNED
+  CARD_LEAD_CHANGED
   LABEL_ADDED
   LABEL_REMOVED
   COMMENT_ADDED
@@ -121,6 +122,7 @@ model User {
   boardsCreated   Board[]         @relation("BoardCreator")
   cardsCreated    Card[]          @relation("CardCreator")
   cardsCompleted  Card[]          @relation("CardCompletedBy")
+  cardsLeading    Card[]          @relation("CardLead")
   cardAssignments CardMember[]
   commentsAuthored Comment[]
   attachmentsUploaded Attachment[]
@@ -280,6 +282,7 @@ model Card {
   isArchived      Boolean   @default(false)
   parentCardId    String?
   createdById     String
+  leadId          String?   // Líder do card: default = createdBy, pode trocar manualmente ou via automação
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -287,6 +290,7 @@ model Card {
   list      List         @relation(fields: [listId], references: [id], onDelete: Cascade)
   createdBy User         @relation("CardCreator", fields: [createdById], references: [id])
   completedBy User?      @relation("CardCompletedBy", fields: [completedById], references: [id])
+  lead      User?        @relation("CardLead", fields: [leadId], references: [id], onDelete: SetNull)
   parent    Card?        @relation("Subtasks", fields: [parentCardId], references: [id], onDelete: SetNull)
   children  Card[]       @relation("Subtasks")
   members   CardMember[]

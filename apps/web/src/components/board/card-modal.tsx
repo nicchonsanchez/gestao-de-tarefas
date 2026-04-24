@@ -27,6 +27,7 @@ import { proseToPlainText } from '@/lib/prose';
 import { UserAvatar } from '@/components/user-avatar';
 import { TimelineFeed } from './timeline-feed';
 import { MemberPicker } from './member-picker';
+import { LeadPicker } from './lead-picker';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Baixa', classes: 'bg-bg-emphasis text-fg-muted' },
@@ -176,7 +177,7 @@ function CardModalContent({
         <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-6 py-5">
           {/* Líder + Equipe + Privacidade */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <MembersInline card={card} />
+            <MembersInline card={card} boardId={boardId} />
             <button
               type="button"
               title="Privacidade (em breve)"
@@ -607,31 +608,19 @@ function MenuItem({
   );
 }
 
-function MembersInline({ card }: { card: CardDetail }) {
-  const lead = card.members[0];
-  const rest = card.members.slice(1);
+function MembersInline({ card, boardId }: { card: CardDetail; boardId: string }) {
+  // "Equipe" = membros do card que não são o líder atual
+  const team = card.members.filter((m) => m.userId !== card.leadId);
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-1.5">
-        <span className="text-fg-muted text-[11px] uppercase tracking-wide">Líder</span>
-        {lead ? (
-          <UserAvatar
-            name={lead.user.name}
-            userId={lead.user.id}
-            avatarUrl={lead.user.avatarUrl}
-            size="sm"
-          />
-        ) : (
-          <span className="text-fg-subtle text-[11px]">—</span>
-        )}
-      </div>
+    <div className="flex flex-wrap items-center gap-3">
+      <LeadPicker card={card} boardId={boardId} />
       <div className="flex items-center gap-1.5">
         <span className="text-fg-muted text-[11px] uppercase tracking-wide">Equipe</span>
-        {rest.length === 0 ? (
+        {team.length === 0 ? (
           <span className="text-fg-subtle text-[11px]">—</span>
         ) : (
           <div className="flex -space-x-1.5">
-            {rest.slice(0, 4).map((m) => (
+            {team.slice(0, 4).map((m) => (
               <UserAvatar
                 key={m.userId}
                 name={m.user.name}
@@ -641,9 +630,9 @@ function MembersInline({ card }: { card: CardDetail }) {
                 stacked
               />
             ))}
-            {rest.length > 4 && (
+            {team.length > 4 && (
               <span className="border-bg bg-bg-muted text-fg-muted inline-flex size-6 shrink-0 select-none items-center justify-center rounded-full border-2 text-[10px] font-semibold">
-                +{rest.length - 4}
+                +{team.length - 4}
               </span>
             )}
           </div>

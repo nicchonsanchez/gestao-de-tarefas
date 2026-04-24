@@ -20,6 +20,7 @@ export const UpdateCardSchema = z.object({
   dueDate: z.string().datetime().nullable().optional(),
   completedAt: z.string().datetime().nullable().optional(),
   estimateMinutes: z.number().int().nonnegative().nullable().optional(),
+  leadId: z.string().cuid().nullable().optional(),
 });
 export type UpdateCardRequest = z.infer<typeof UpdateCardSchema>;
 
