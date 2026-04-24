@@ -1,10 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
-import { Button } from '@ktask/ui';
+import { LogOut, User as UserIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsBell } from '@/components/notifications-bell';
 import { UserAvatar } from '@/components/user-avatar';
@@ -75,26 +75,62 @@ export function Topbar() {
           <NotificationsBell />
           <ThemeToggle />
           <div className="bg-border/70 mx-1 h-5 w-px" aria-hidden />
-          {user && (
-            <div className="flex items-center gap-2 pr-1">
-              <UserAvatar name={user.name} userId={user.id} avatarUrl={user.avatarUrl} size="md" />
-              <span className="text-fg hidden max-w-[160px] truncate text-sm font-medium md:inline">
-                {user.name}
-              </span>
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            title="Sair"
-            className="text-fg-muted hover:text-fg"
-          >
-            <LogOut size={16} />
-            <span className="sr-only">Sair</span>
-          </Button>
+          {user && <UserMenu onLogout={handleLogout} />}
         </div>
       </div>
     </header>
+  );
+}
+
+function UserMenu({ onLogout }: { onLogout: () => void }) {
+  const user = useAuthStore((s) => s.user);
+  const [open, setOpen] = useState(false);
+  if (!user) return null;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="hover:bg-bg-muted flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <UserAvatar name={user.name} userId={user.id} avatarUrl={user.avatarUrl} size="md" />
+        <span className="text-fg hidden max-w-[160px] truncate text-sm font-medium md:inline">
+          {user.name}
+        </span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
+          <div className="border-border bg-bg absolute right-0 top-full z-40 mt-1.5 flex w-56 flex-col overflow-hidden rounded-md border p-1 text-sm shadow-lg">
+            <div className="border-border/70 border-b px-3 py-2.5">
+              <p className="text-fg truncate font-medium">{user.name}</p>
+              <p className="text-fg-muted mt-0.5 truncate text-[11px]">{user.email}</p>
+            </div>
+            <Link
+              href="/configuracoes/perfil"
+              onClick={() => setOpen(false)}
+              className="text-fg hover:bg-bg-muted flex items-center gap-2 rounded-sm px-2 py-1.5"
+            >
+              <UserIcon size={14} />
+              Meu perfil
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onLogout();
+              }}
+              className="text-danger hover:bg-danger-subtle flex items-center gap-2 rounded-sm px-2 py-1.5 text-left"
+            >
+              <LogOut size={14} />
+              Sair
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

@@ -134,6 +134,27 @@ export class AuthService {
     return this.users.findPublicById(userId);
   }
 
+  /**
+   * Troca a senha do usuário autenticado. Invalida todas as sessões
+   * (refresh tokens) pra forçar re-login em outros dispositivos.
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Sessão inválida.');
+    }
+    const ok = await this.password.verify(user.passwordHash, currentPassword);
+    if (!ok) {
+      throw new UnauthorizedException('Senha atual incorreta.');
+    }
+    const newHash = await this.password.hash(newPassword);
+    await this.users.updatePasswordHash(userId, newHash);
+    // Revoga todas as sessões exceto possivelmente a atual — seguro assumir
+    // que o user vai re-logar se desejar. Revoga todas pra simplificar.
+    await this.prisma.session.deleteMany({ where: { userId } });
+    return { ok: true };
+  }
+
   // -----------------------------------------------------------------
   // Internal
   // -----------------------------------------------------------------

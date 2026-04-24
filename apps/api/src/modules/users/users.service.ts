@@ -47,4 +47,26 @@ export class UsersService {
       data: { passwordHash },
     });
   }
+
+  async updateProfile(
+    id: string,
+    input: {
+      name?: string;
+      avatarUrl?: string | null;
+      locale?: string;
+      timezone?: string;
+    },
+  ): Promise<PublicUser> {
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+        ...(input.locale !== undefined ? { locale: input.locale } : {}),
+        ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+      },
+      select: PUBLIC_SELECT,
+    });
+    return updated;
+  }
 }
