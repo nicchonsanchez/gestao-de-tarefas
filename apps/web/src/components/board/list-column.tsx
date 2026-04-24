@@ -147,7 +147,7 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
           <button
             type="button"
             onClick={() => setDraft('')}
-            className="group/add bg-primary-subtle text-primary hover:bg-primary hover:text-primary-fg flex h-8 w-full items-center justify-center overflow-hidden rounded-md text-xs font-medium transition-all duration-200 hover:h-9 hover:shadow-sm"
+            className="group/add bg-primary-subtle text-primary hover:bg-primary hover:text-primary-fg flex h-9 w-full items-center justify-center overflow-hidden rounded-md text-xs font-medium transition-colors duration-200 hover:shadow-sm"
             aria-label="Adicionar card"
           >
             <span className="flex items-center gap-1.5">
