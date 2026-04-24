@@ -1,47 +1,147 @@
 'use client';
 
 import { useDroppable } from '@dnd-kit/core';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Archive, GripVertical, MoreHorizontal, Pencil, Plus } from 'lucide-react';
 
 import { Button } from '@ktask/ui';
-import { boardsQueries, createCard, type ListWithCards } from '@/lib/queries/boards';
+import {
+  archiveList,
+  boardsQueries,
+  createCard,
+  updateList,
+  type ListWithCards,
+} from '@/lib/queries/boards';
+
+/** Prefixo usado nos IDs de colunas no DndContext pra não colidir com cardIds. */
+export const LIST_SORT_PREFIX = 'col:';
 
 export function ListColumn({ list, children }: { list: ListWithCards; children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id: list.id });
+  const sortable = useSortable({
+    id: `${LIST_SORT_PREFIX}${list.id}`,
+    data: { type: 'list', listId: list.id },
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: list.id });
   const params = useParams<{ boardId: string }>();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [name, setName] = useState(list.name);
+  useEffect(() => setName(list.name), [list.name]);
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: boardsQueries.detail(params.boardId).queryKey });
+  }
 
   const mutation = useMutation({
     mutationFn: (title: string) => createCard({ listId: list.id, title }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: boardsQueries.detail(params.boardId).queryKey });
+      invalidate();
       setDraft('');
     },
   });
 
+  const renameMut = useMutation({
+    mutationFn: (newName: string) => updateList(list.id, { name: newName }),
+    onSuccess: invalidate,
+  });
+
+  const archiveMut = useMutation({
+    mutationFn: () => archiveList(list.id),
+    onSuccess: invalidate,
+  });
+
+  function saveName() {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === list.name) {
+      setName(list.name);
+      setEditingName(false);
+      return;
+    }
+    renameMut.mutate(trimmed);
+    setEditingName(false);
+  }
+
+  const {
+    setNodeRef: setSortableRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+  } = sortable;
+
+  function setCombinedRef(node: HTMLDivElement | null) {
+    setSortableRef(node);
+    setDropRef(node);
+  }
+
   return (
     <div
-      ref={setNodeRef}
+      ref={setCombinedRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      {...attributes}
       className={`bg-bg border-border/60 flex h-full w-[280px] shrink-0 flex-col rounded-lg border shadow-sm ${
         isOver ? 'ring-primary/40 ring-2' : ''
       }`}
     >
-      <div className="flex items-center justify-between px-3 pb-1 pt-2.5">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold">{list.name}</h2>
-          <span className="bg-bg-muted text-fg-muted rounded-full px-1.5 text-xs">
+      <div className="group/header flex items-center justify-between gap-2 px-3 pb-1 pt-2.5">
+        <button
+          type="button"
+          {...listeners}
+          className="text-fg-muted hover:text-fg cursor-grab touch-none opacity-0 transition-opacity active:cursor-grabbing group-hover/header:opacity-100"
+          aria-label="Reordenar coluna"
+        >
+          <GripVertical size={14} />
+        </button>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {editingName ? (
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveName();
+                if (e.key === 'Escape') {
+                  setName(list.name);
+                  setEditingName(false);
+                }
+              }}
+              maxLength={120}
+              className="bg-bg-muted focus-visible:ring-primary min-w-0 flex-1 rounded px-1.5 py-0.5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2"
+            />
+          ) : (
+            <button
+              type="button"
+              onDoubleClick={() => setEditingName(true)}
+              className="min-w-0 flex-1 truncate text-left text-sm font-semibold"
+              title="Clique duas vezes para renomear"
+            >
+              {list.name}
+            </button>
+          )}
+          <span className="bg-bg-muted text-fg-muted shrink-0 rounded-full px-1.5 text-xs">
             {list.cards.length}
           </span>
         </div>
+        <ListMenu
+          onRename={() => setEditingName(true)}
+          onArchive={() => {
+            if (confirm(`Arquivar a coluna "${list.name}"? Os cards também ficarão arquivados.`))
+              archiveMut.mutate();
+          }}
+        />
       </div>
 
-      {/* Botão "Adicionar card" — sempre no topo, estilo Ummense:
-          idle: barra discreta com só ícone no centro
-          hover: expande, cor primária e texto "Adicionar card" */}
       <div className="px-2 pt-1">
         {draft === null ? (
           <button
@@ -99,6 +199,62 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
       <div className="flex min-h-[60px] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 pt-2">
         {children}
       </div>
+    </div>
+  );
+}
+
+function ListMenu({ onRename, onArchive }: { onRename: () => void; onArchive: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-fg-muted hover:bg-bg-muted hover:text-fg focus-visible:ring-primary rounded p-1 opacity-0 transition-all focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 group-hover/header:opacity-100 aria-expanded:opacity-100"
+        aria-label="Opções da coluna"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <MoreHorizontal size={14} />
+      </button>
+      {open && (
+        <div className="border-border bg-bg absolute right-0 top-full z-20 mt-1 flex w-48 flex-col rounded-md border p-1 text-sm shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onRename();
+            }}
+            className="text-fg hover:bg-bg-muted flex items-center gap-2 rounded-sm px-2 py-1.5 text-left"
+          >
+            <Pencil size={13} />
+            Renomear
+          </button>
+          <div className="border-border/70 my-1 border-t" />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onArchive();
+            }}
+            className="text-danger hover:bg-danger-subtle flex items-center gap-2 rounded-sm px-2 py-1.5 text-left"
+          >
+            <Archive size={13} />
+            Arquivar coluna
+          </button>
+        </div>
+      )}
     </div>
   );
 }

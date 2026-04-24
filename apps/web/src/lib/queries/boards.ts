@@ -96,6 +96,24 @@ export function createCard(input: { listId: string; title: string }) {
   );
 }
 
+/* -------------------------- Listas (colunas) -------------------------- */
+
+export function createList(input: { boardId: string; name: string }) {
+  return api.post<{ id: string; name: string; position: number }>('/api/v1/lists', input);
+}
+
+export function updateList(listId: string, input: { name?: string; color?: string | null }) {
+  return api.patch(`/api/v1/lists/${listId}`, input);
+}
+
+export function moveList(listId: string, input: { afterListId: string | null }) {
+  return api.patch(`/api/v1/lists/${listId}/move`, input);
+}
+
+export function archiveList(listId: string) {
+  return api.delete(`/api/v1/lists/${listId}`);
+}
+
 export function completeCard(cardId: string) {
   return api.post(`/api/v1/cards/${cardId}/complete`, {});
 }

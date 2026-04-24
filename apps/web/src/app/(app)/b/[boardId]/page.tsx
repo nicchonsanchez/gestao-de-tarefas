@@ -21,6 +21,7 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   arrayMove,
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
@@ -30,13 +31,15 @@ import {
   boardsQueries,
   completeCard,
   moveCard,
+  moveList,
   type BoardDetail,
   type CardListItem,
 } from '@/lib/queries/boards';
 import { CardItem, CardOverlay } from '@/components/board/card-item';
-import { ListColumn } from '@/components/board/list-column';
+import { ListColumn, LIST_SORT_PREFIX } from '@/components/board/list-column';
 import { CardModal } from '@/components/board/card-modal';
 import { CompletedColumn, COMPLETED_DROPPABLE_ID } from '@/components/board/completed-column';
+import { AddColumnButton } from '@/components/board/add-column-button';
 import { ApiError } from '@/lib/api-client';
 import { useRealtimeBoard } from '@/hooks/use-realtime-board';
 
@@ -82,8 +85,15 @@ export default function BoardPage() {
     return map;
   }, [board]);
 
+  function isListDrag(id: string) {
+    return id.startsWith(LIST_SORT_PREFIX);
+  }
+
   function handleDragStart(event: DragStartEvent) {
     const id = String(event.active.id);
+    if (isListDrag(id)) {
+      return; // drag de coluna não abre overlay de card
+    }
     const listId = cardIdToListId.get(id);
     if (!board || !listId) return;
     const list = board.lists.find((l) => l.id === listId);
@@ -98,6 +108,9 @@ export default function BoardPage() {
     const activeId = String(active.id);
     const overId = String(over.id);
     if (activeId === overId) return;
+
+    // Drag de coluna não afeta listas de cards; reorder é tratado em handleDragEnd
+    if (isListDrag(activeId)) return;
 
     // Drop em coluna "Finalizado" é tratado só no handleDragEnd (não move card entre listas)
     if (overId === COMPLETED_DROPPABLE_ID) return;
@@ -131,6 +144,42 @@ export default function BoardPage() {
 
     const activeId = String(active.id);
     const overId = String(over.id);
+
+    // Reorder de colunas (drag horizontal)
+    if (isListDrag(activeId)) {
+      if (!isListDrag(overId) || activeId === overId) return;
+      const activeListId = activeId.slice(LIST_SORT_PREFIX.length);
+      const overListId = overId.slice(LIST_SORT_PREFIX.length);
+
+      const data = queryClient.getQueryData<BoardDetail>(boardsQueries.detail(boardId).queryKey);
+      if (!data) return;
+
+      const fromIdx = data.lists.findIndex((l) => l.id === activeListId);
+      const toIdx = data.lists.findIndex((l) => l.id === overListId);
+      if (fromIdx < 0 || toIdx < 0) return;
+
+      // Otimista: reordena no cache
+      queryClient.setQueryData<BoardDetail>(boardsQueries.detail(boardId).queryKey, (prev) => {
+        if (!prev) return prev;
+        const next = structuredClone(prev);
+        next.lists = arrayMove(next.lists, fromIdx, toIdx);
+        return next;
+      });
+
+      // Descobre o afterListId baseado no novo índice
+      const newLists = arrayMove(data.lists, fromIdx, toIdx);
+      const newIdx = newLists.findIndex((l) => l.id === activeListId);
+      const afterListId = newIdx > 0 ? (newLists[newIdx - 1]?.id ?? null) : null;
+
+      try {
+        await moveList(activeListId, { afterListId });
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : 'Erro ao mover coluna.';
+        console.error('[board] moveList failed:', msg);
+        queryClient.invalidateQueries({ queryKey: boardsQueries.detail(boardId).queryKey });
+      }
+      return;
+    }
 
     // Drop na coluna virtual "Finalizado" = finalizar card
     if (overId === COMPLETED_DROPPABLE_ID) {
@@ -242,18 +291,24 @@ export default function BoardPage() {
       >
         <div className="flex-1 overflow-x-auto overflow-y-hidden">
           <div className="inline-flex h-full gap-4 p-4">
-            {board.lists.map((list) => (
-              <ListColumn key={list.id} list={list}>
-                <SortableContext
-                  items={list.cards.map((c) => c.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {list.cards.map((card) => (
-                    <CardItem key={card.id} card={card} />
-                  ))}
-                </SortableContext>
-              </ListColumn>
-            ))}
+            <SortableContext
+              items={board.lists.map((l) => `${LIST_SORT_PREFIX}${l.id}`)}
+              strategy={horizontalListSortingStrategy}
+            >
+              {board.lists.map((list) => (
+                <ListColumn key={list.id} list={list}>
+                  <SortableContext
+                    items={list.cards.map((c) => c.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {list.cards.map((card) => (
+                      <CardItem key={card.id} card={card} />
+                    ))}
+                  </SortableContext>
+                </ListColumn>
+              ))}
+            </SortableContext>
+            <AddColumnButton boardId={boardId} />
             <CompletedColumn boardId={boardId} completedCount={board.completedCount ?? 0} />
           </div>
         </div>
