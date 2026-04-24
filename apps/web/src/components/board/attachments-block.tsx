@@ -13,7 +13,6 @@ import {
   Upload,
 } from 'lucide-react';
 
-import { Button } from '@ktask/ui';
 import {
   cardsQueries,
   removeAttachment,
@@ -59,6 +58,8 @@ export function AttachmentsBlock({ card, boardId }: { card: CardDetail; boardId:
     }
   }
 
+  const hasAttachments = card.attachments.length > 0;
+
   return (
     <div
       onDragOver={(e) => {
@@ -71,9 +72,7 @@ export function AttachmentsBlock({ card, boardId }: { card: CardDetail; boardId:
         setDragOver(false);
         if (e.dataTransfer.files.length > 0) enqueue(e.dataTransfer.files);
       }}
-      className={`flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors ${
-        dragOver ? 'border-primary bg-primary-subtle' : 'border-transparent'
-      }`}
+      className="flex flex-col gap-3"
     >
       <input
         ref={fileRef}
@@ -86,12 +85,7 @@ export function AttachmentsBlock({ card, boardId }: { card: CardDetail; boardId:
         }}
       />
 
-      {card.attachments.length === 0 ? (
-        <div className="text-fg-muted flex flex-col items-center gap-1.5 py-4 text-center text-xs">
-          <Paperclip size={18} className="opacity-50" />
-          <p>Arraste um arquivo aqui ou clique em "Anexar arquivo".</p>
-        </div>
-      ) : (
+      {hasAttachments && (
         <ul className="flex flex-col gap-2">
           {card.attachments.map((a) => (
             <AttachmentRow key={a.id} attachment={a} onRemoved={invalidate} />
@@ -99,26 +93,51 @@ export function AttachmentsBlock({ card, boardId }: { card: CardDetail; boardId:
         </ul>
       )}
 
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploadMut.isPending}
-          className="border-border/70 hover:border-primary/50 hover:text-primary border border-dashed"
+      {/* Dropzone principal: grande quando vazio, discreta quando tem anexos */}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploadMut.isPending}
+        className={`group/drop flex w-full items-center gap-3 rounded-lg border-2 border-dashed px-4 py-3 text-left transition-all ${
+          dragOver
+            ? 'border-primary bg-primary-subtle'
+            : 'border-border/60 hover:border-primary/50 hover:bg-bg-muted/50'
+        } ${hasAttachments ? 'py-2.5' : 'py-6'} disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        <div
+          className={`bg-primary-subtle text-primary flex shrink-0 items-center justify-center rounded-full transition-all ${
+            hasAttachments ? 'size-8' : 'size-10'
+          }`}
         >
           {uploadMut.isPending ? (
-            <Loader2 size={12} className="animate-spin" />
+            <Loader2 size={hasAttachments ? 14 : 18} className="animate-spin" />
+          ) : dragOver ? (
+            <Upload size={hasAttachments ? 14 : 18} />
           ) : (
-            <Upload size={12} />
+            <Paperclip size={hasAttachments ? 14 : 18} />
           )}
-          Anexar arquivo
-        </Button>
-        {uploadMut.isPending && <span className="text-fg-muted text-[11px]">Enviando…</span>}
-      </div>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={`text-fg font-medium ${hasAttachments ? 'text-xs' : 'text-sm'}`}>
+            {uploadMut.isPending
+              ? 'Enviando…'
+              : dragOver
+                ? 'Solte aqui para anexar'
+                : hasAttachments
+                  ? 'Adicionar outro arquivo'
+                  : 'Anexar arquivo ao card'}
+          </p>
+          {!hasAttachments && !uploadMut.isPending && !dragOver && (
+            <p className="text-fg-muted mt-0.5 text-[11px]">
+              Arraste ou clique — até 25 MB por arquivo
+            </p>
+          )}
+        </div>
+      </button>
 
-      {error && <p className="text-danger text-xs">{error}</p>}
+      {error && (
+        <p className="bg-danger-subtle text-danger rounded-md px-3 py-2 text-xs">{error}</p>
+      )}
     </div>
   );
 }

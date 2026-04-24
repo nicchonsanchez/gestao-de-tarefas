@@ -295,7 +295,7 @@ function CardModalContent({
           </Block>
 
           {/* Tarefas do card */}
-          <Block icon={<ChecklistIcon />} label={`Tarefas do card (${card.checklists.length})`}>
+          <Block icon={<ChecklistIcon />} label={tarefasDoCardLabel(card)}>
             <ChecklistBlock card={card} boardId={boardId} />
           </Block>
 
@@ -325,6 +325,17 @@ function CardModalContent({
 }
 
 /* ---------------- sub-componentes ---------------- */
+
+function tarefasDoCardLabel(card: CardDetail): string {
+  let total = 0;
+  let done = 0;
+  for (const cl of card.checklists) {
+    total += cl.items.length;
+    done += cl.items.filter((it) => it.isDone).length;
+  }
+  if (total === 0) return 'Tarefas do card';
+  return `Tarefas do card (${done}/${total})`;
+}
 
 function Block({
   icon,

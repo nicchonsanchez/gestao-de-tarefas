@@ -65,7 +65,7 @@ export function ChecklistBlock({ card, boardId }: { card: CardDetail; boardId: s
                 setNewTitle('');
               }
             }}
-            placeholder="Título da lista de tarefas"
+            placeholder="Título da lista"
             maxLength={200}
             className="bg-bg border-border focus-visible:ring-primary flex-1 rounded-md border px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2"
           />
@@ -92,7 +92,7 @@ export function ChecklistBlock({ card, boardId }: { card: CardDetail; boardId: s
           className="border-border/70 text-fg-muted hover:text-primary hover:border-primary/50 inline-flex w-fit items-center gap-1.5 rounded-md border border-dashed px-3 py-1.5 text-xs font-medium transition-colors"
         >
           <Plus size={12} />
-          Adicionar tarefa
+          Adicionar lista
         </button>
       )}
     </div>
@@ -261,7 +261,7 @@ function ChecklistSection({ checklist, onChange }: { checklist: Checklist; onCha
           className="text-fg-muted hover:text-primary inline-flex w-fit items-center gap-1 rounded px-1.5 py-1 text-xs"
         >
           <Plus size={12} />
-          Adicionar item
+          Adicionar tarefa
         </button>
       )}
     </section>
