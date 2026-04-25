@@ -618,22 +618,64 @@ export class CardsService {
       lead: { select: { id: true, name: true, email: true, avatarUrl: true } },
     } as const;
 
-    const [parent, children] = await Promise.all([
+    const [parent, siblings, descendantsFlat] = await Promise.all([
       card.parentCardId
         ? this.prisma.card.findUnique({ where: { id: card.parentCardId }, include })
         : Promise.resolve(null),
-      this.prisma.card.findMany({
+      // Irmãos: cards com mesmo parentCardId, excluindo o atual.
+      card.parentCardId
+        ? this.prisma.card.findMany({
+            where: {
+              parentCardId: card.parentCardId,
+              organizationId: tenant.organizationId,
+              isArchived: false,
+              id: { not: cardId },
+            },
+            orderBy: { createdAt: 'asc' },
+            include,
+          })
+        : Promise.resolve([]),
+      // Descendentes em múltiplos níveis (filhos, netos, bisnetos, ...).
+      // Padrão Ummense — limita profundidade a 6 níveis pra evitar carga
+      // excessiva em hierarquias bizarras.
+      this.collectDescendants(cardId, tenant.organizationId, include, 6),
+    ]);
+
+    return { parent, siblings, descendants: descendantsFlat };
+  }
+
+  /**
+   * Coleta descendentes em camadas (BFS), até `maxDepth` níveis.
+   * `depth` no retorno: 1 = filho direto, 2 = neto, 3 = bisneto, etc.
+   */
+  private async collectDescendants(
+    rootId: string,
+    organizationId: string,
+    include: object,
+    maxDepth: number,
+  ) {
+    type WithDepth = Awaited<ReturnType<typeof this.prisma.card.findMany>>[number] & {
+      depth: number;
+    };
+    const all: WithDepth[] = [];
+    let frontierIds = [rootId];
+    let currentDepth = 1;
+    while (frontierIds.length > 0 && currentDepth <= maxDepth) {
+      const layer = await this.prisma.card.findMany({
         where: {
-          parentCardId: cardId,
-          organizationId: tenant.organizationId,
+          parentCardId: { in: frontierIds },
+          organizationId,
           isArchived: false,
         },
         orderBy: { createdAt: 'asc' },
-        include,
-      }),
-    ]);
-
-    return { parent, children };
+        include: include as never,
+      });
+      if (layer.length === 0) break;
+      for (const c of layer) all.push({ ...c, depth: currentDepth });
+      frontierIds = layer.map((c) => c.id);
+      currentDepth += 1;
+    }
+    return all;
   }
 
   /**
@@ -647,17 +689,23 @@ export class CardsService {
     input: {
       title: string;
       description?: Prisma.InputJsonValue | null;
+      copyDescription?: boolean;
       copyLead?: boolean;
       copyTeam?: boolean;
       copyTags?: boolean;
       copyDueDate?: boolean;
+      copyAttachments?: boolean;
       targetBoardId?: string | null;
       targetListId?: string | null;
     },
   ) {
     const parent = await this.prisma.card.findUnique({
       where: { id: parentId },
-      include: { labels: true, members: true },
+      include: {
+        labels: true,
+        members: true,
+        attachments: { where: { commentId: null, embedded: false } },
+      },
     });
     if (!parent || parent.organizationId !== tenant.organizationId) {
       throw new NotFoundException('Card pai não encontrado.');
@@ -708,13 +756,25 @@ export class CardsService {
       : parent.labels.map((l) => l.labelId);
 
     const child = await this.prisma.$transaction(async (tx) => {
+      // Resolve descricao final:
+      // - se input.description vier (com texto digitado pelo user no editor), usa ele
+      // - senao se copyDescription, copia do pai
+      // - senao deixa null
+      const finalDescription =
+        input.description !== undefined && input.description !== null
+          ? (input.description as Prisma.InputJsonValue)
+          : input.copyDescription
+            ? ((parent as unknown as { description: Prisma.InputJsonValue | null }).description ??
+              undefined)
+            : undefined;
+
       const newCard = await tx.card.create({
         data: {
           organizationId: parent.organizationId,
           boardId: destBoardId,
           listId: destListId,
           title: input.title,
-          description: (input.description ?? undefined) as Prisma.InputJsonValue | undefined,
+          description: finalDescription,
           priority: parent.priority,
           startDate: input.copyDueDate ? parent.startDate : null,
           dueDate: input.copyDueDate ? parent.dueDate : null,
@@ -741,6 +801,24 @@ export class CardsService {
         await tx.cardMember.createMany({
           data: memberIds.map((uid) => ({ cardId: newCard.id, userId: uid })),
           skipDuplicates: true,
+        });
+      }
+
+      // Copia anexos diretos do card (não-embedded, não de comments).
+      // Reutiliza as mesmas storageKey — o objeto vive uma vez no S3 e é
+      // referenciado por N attachments. Quando uma cópia for removida, o
+      // storage segue disponível pelas outras referências.
+      if (input.copyAttachments && parent.attachments.length > 0) {
+        await tx.attachment.createMany({
+          data: parent.attachments.map((a) => ({
+            cardId: newCard.id,
+            uploaderId: userId,
+            fileName: a.fileName,
+            mimeType: a.mimeType,
+            sizeBytes: a.sizeBytes,
+            storageKey: a.storageKey,
+            kind: a.kind,
+          })),
         });
       }
 

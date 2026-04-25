@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { Check, ChevronDown, Loader2, X } from 'lucide-react';
 
-import { Dialog, DialogContent, DialogTitle, Input, Label } from '@ktask/ui';
+import { Dialog, DialogContent, DialogTitle, Input } from '@ktask/ui';
 import { boardsQueries, type BoardListItem } from '@/lib/queries/boards';
 import {
   cardFamilyQuery,
@@ -14,13 +15,54 @@ import {
   type CreateChildInput,
 } from '@/lib/queries/cards';
 import { ApiError } from '@/lib/api-client';
+import { RichEditor } from '@/components/editor';
 
-const TOGGLES: Array<{ key: keyof CreateChildInput; label: string }> = [
-  { key: 'copyLead', label: 'Líder' },
-  { key: 'copyTeam', label: 'Equipe' },
-  { key: 'copyTags', label: 'Tags' },
-  { key: 'copyDueDate', label: 'Prazo' },
+/**
+ * Toggles disponíveis no dialog. `available: false` = checkbox desabilitada
+ * com tooltip "em breve" (depende de feature ainda não implementada).
+ *
+ * Ordem segue o padrão Ummense (Descrição, Líder, Equipe, Contatos, Tags,
+ * Privacidade, Data do card, Campos personalizados, Arquivos).
+ */
+type ToggleKey =
+  | 'copyDescription'
+  | 'copyLead'
+  | 'copyTeam'
+  | 'copyContacts'
+  | 'copyTags'
+  | 'copyPrivacy'
+  | 'copyDueDate'
+  | 'copyCustomFields'
+  | 'copyAttachments';
+
+const TOGGLES: Array<{ key: ToggleKey; label: string; available: boolean; reason?: string }> = [
+  { key: 'copyDescription', label: 'Descrição', available: true },
+  { key: 'copyLead', label: 'Líder', available: true },
+  { key: 'copyTeam', label: 'Equipe', available: true },
+  {
+    key: 'copyContacts',
+    label: 'Contatos',
+    available: false,
+    reason: 'Em breve — depende da agenda de contatos externos.',
+  },
+  { key: 'copyTags', label: 'Tags', available: true },
+  {
+    key: 'copyPrivacy',
+    label: 'Privacidade',
+    available: false,
+    reason: 'Em breve — privacidade por card ainda não implementada.',
+  },
+  { key: 'copyDueDate', label: 'Data do card', available: true },
+  {
+    key: 'copyCustomFields',
+    label: 'Campos personalizados',
+    available: false,
+    reason: 'Em breve — campos personalizados ainda não implementados.',
+  },
+  { key: 'copyAttachments', label: 'Arquivos', available: true },
 ];
+
+const AVAILABLE_KEYS: ToggleKey[] = TOGGLES.filter((t) => t.available).map((t) => t.key);
 
 export function CreateChildCardDialog({
   parent,
@@ -32,35 +74,79 @@ export function CreateChildCardDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [title, setTitle] = useState('');
   const [opts, setOpts] = useState<Record<string, boolean>>({});
+  const [description, setDescription] = useState<unknown>(null);
   const [boardSel, setBoardSel] = useState<BoardListItem | null>(null);
   const [listSel, setListSel] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [openAfterCreate, setOpenAfterCreate] = useState(false);
 
   useEffect(() => {
     if (open) {
       setTitle('');
       setOpts({});
+      setDescription(null);
       setBoardSel(null);
       setListSel(null);
       setError(null);
+      setOpenAfterCreate(false);
     }
   }, [open]);
 
+  // Pre-popula a descrição do editor inline com a descrição do pai quando o
+  // user marca "Descrição" — assim ele pode revisar/editar antes de criar.
+  useEffect(() => {
+    if (opts.copyDescription) {
+      setDescription((prev: unknown) => (prev ? prev : (parent.description ?? null)));
+    } else {
+      setDescription(null);
+    }
+  }, [opts.copyDescription, parent.description]);
+
+  const allSelected = useMemo(() => AVAILABLE_KEYS.every((k) => opts[k]), [opts]);
+
+  function toggleAll(next: boolean) {
+    const updated: Record<string, boolean> = { ...opts };
+    AVAILABLE_KEYS.forEach((k) => {
+      updated[k] = next;
+    });
+    setOpts(updated);
+  }
+
+  function toggleOne(key: ToggleKey) {
+    setOpts((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
   const mut = useMutation({
-    mutationFn: () =>
-      createChildCard(parent.id, {
+    mutationFn: () => {
+      const payload: CreateChildInput = {
         title: title.trim(),
-        ...opts,
+        copyDescription: !!opts.copyDescription,
+        copyLead: !!opts.copyLead,
+        copyTeam: !!opts.copyTeam,
+        copyTags: !!opts.copyTags,
+        copyDueDate: !!opts.copyDueDate,
+        copyAttachments: !!opts.copyAttachments,
         targetBoardId: boardSel?.id ?? null,
         targetListId: listSel?.id ?? null,
-      } as CreateChildInput),
-    onSuccess: () => {
+      };
+      if (opts.copyDescription && description) {
+        payload.description = description;
+      }
+      return createChildCard(parent.id, payload);
+    },
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: cardFamilyQuery(parent.id).queryKey });
       queryClient.invalidateQueries({ queryKey: cardsQueries.detail(parent.id).queryKey });
       queryClient.invalidateQueries({ queryKey: ['boards'] });
       onOpenChange(false);
+      if (openAfterCreate && created?.id) {
+        // Navega pro card recém criado
+        const targetBoardId = created.boardId ?? boardSel?.id ?? parent.boardId;
+        router.push(`/b/${targetBoardId}?card=${created.id}`);
+      }
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : 'Erro ao criar card filho.');
@@ -70,16 +156,19 @@ export function CreateChildCardDialog({
   const canSubmit =
     title.trim().length > 0 && !mut.isPending && ((!boardSel && !listSel) || (boardSel && listSel));
 
+  function submit(openAfter: boolean) {
+    setOpenAfterCreate(openAfter);
+    mut.mutate();
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent hideClose className="max-w-md gap-0 p-0">
+      <DialogContent
+        hideClose
+        className="max-h-[calc(100vh-2rem)] w-[min(560px,calc(100vw-1rem))] max-w-[560px] gap-0 overflow-y-auto p-0"
+      >
         <div className="flex items-start justify-between gap-3 px-5 pb-2 pt-5">
-          <div>
-            <DialogTitle className="text-base font-semibold">Criar card filho</DialogTitle>
-            <p className="text-fg-muted mt-1 text-xs">
-              O novo card ficará vinculado a "{parent.title}".
-            </p>
-          </div>
+          <DialogTitle className="text-base font-semibold">Criar card filho</DialogTitle>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
@@ -90,34 +179,62 @@ export function CreateChildCardDialog({
           </button>
         </div>
 
-        <div className="flex flex-col gap-3 px-5 pb-5">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="child-title">Nome do card filho</Label>
-            <Input
-              id="child-title"
-              autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Subir Chatwoot"
-              maxLength={500}
-            />
-          </div>
+        <div className="flex flex-col gap-4 px-5 pb-5">
+          <Input
+            id="child-title"
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Nome do card"
+            maxLength={500}
+          />
 
-          <div className="border-border/70 mt-1 flex flex-col gap-2 border-t pt-3">
-            <p className="text-fg-muted text-[11px] font-semibold uppercase tracking-wide">
-              Copiar do pai
-            </p>
+          <p className="text-fg-muted text-xs">
+            Selecione quais informações do card serão copiadas.
+          </p>
+
+          {/* Toggle "Selecionar todas" */}
+          <label className="flex cursor-pointer items-center gap-3 text-sm">
+            <SwitchToggle checked={allSelected} onChange={() => toggleAll(!allSelected)} />
+            <span className="text-fg-muted">Selecionar todas</span>
+          </label>
+
+          {/* Lista de checkboxes */}
+          <div className="flex flex-col gap-2">
             {TOGGLES.map((t) => (
-              <label key={t.key} className="flex cursor-pointer items-center gap-2 text-sm">
-                <Checkbox
-                  checked={!!opts[t.key]}
-                  onChange={() => setOpts((prev) => ({ ...prev, [t.key]: !prev[t.key as string] }))}
-                />
-                <span>{t.label}</span>
-              </label>
+              <div key={t.key} className="flex flex-col gap-2">
+                <label
+                  className={`flex items-center gap-2 text-sm ${
+                    t.available ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                  }`}
+                  title={t.reason}
+                >
+                  <Checkbox
+                    checked={!!opts[t.key]}
+                    disabled={!t.available}
+                    onChange={() => t.available && toggleOne(t.key)}
+                  />
+                  <span>{t.label}</span>
+                  {!t.available && <span className="text-fg-subtle text-[10px]">em breve</span>}
+                </label>
+
+                {/* Editor inline da descrição quando marcada */}
+                {t.key === 'copyDescription' && opts.copyDescription && (
+                  <div className="ml-6">
+                    <RichEditor
+                      value={description}
+                      onChange={(doc) => setDescription(doc)}
+                      placeholder="Descrição"
+                      debounceMs={0}
+                      minHeight="6rem"
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 
+          {/* Vincular fluxo */}
           <div className="border-border/70 mt-1 flex flex-col gap-2 border-t pt-3">
             <p className="text-fg text-sm font-semibold">
               Vincular card filho a um fluxo (opcional)
@@ -139,21 +256,26 @@ export function CreateChildCardDialog({
             <p className="bg-danger-subtle text-danger rounded-md px-3 py-2 text-xs">{error}</p>
           )}
 
-          <div className="border-border/70 mt-1 flex items-center justify-end gap-2 border-t pt-3">
+          {/* Botões */}
+          <div className="border-border/70 mt-1 flex items-center justify-end gap-3 border-t pt-3">
             <button
               type="button"
-              onClick={() => onOpenChange(false)}
-              className="text-fg-muted hover:text-fg text-sm"
+              onClick={() => submit(true)}
+              disabled={!canSubmit}
+              className="text-primary text-sm font-medium hover:underline disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cancelar
+              {mut.isPending && openAfterCreate && (
+                <Loader2 size={14} className="mr-1 inline animate-spin" />
+              )}
+              Criar e abrir card filho
             </button>
             <button
               type="button"
-              onClick={() => mut.mutate()}
+              onClick={() => submit(false)}
               disabled={!canSubmit}
               className="bg-primary text-primary-fg hover:bg-primary-hover inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {mut.isPending && <Loader2 size={14} className="animate-spin" />}
+              {mut.isPending && !openAfterCreate && <Loader2 size={14} className="animate-spin" />}
               Criar
             </button>
           </div>
@@ -163,20 +285,49 @@ export function CreateChildCardDialog({
   );
 }
 
-function Checkbox({ checked, onChange }: { checked: boolean; onChange?: () => void }) {
+function Checkbox({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange?: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onChange}
+      disabled={disabled}
       role="checkbox"
       aria-checked={checked}
       className={`flex size-4 shrink-0 items-center justify-center rounded border transition-colors ${
         checked
           ? 'bg-primary border-primary text-primary-fg'
           : 'border-border bg-bg hover:border-border-strong'
-      }`}
+      } disabled:cursor-not-allowed disabled:opacity-50`}
     >
       {checked && <Check size={11} />}
+    </button>
+  );
+}
+
+function SwitchToggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+        checked ? 'bg-primary' : 'bg-bg-emphasis'
+      }`}
+    >
+      <span
+        className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
+          checked ? 'translate-x-[18px]' : 'translate-x-0.5'
+        }`}
+      />
     </button>
   );
 }

@@ -36,10 +36,12 @@ export const LabelIdSchema = z.object({ labelId: z.string().cuid() });
 export const CreateChildCardSchema = z.object({
   title: z.string().min(1).max(500).trim(),
   description: z.any().optional().nullable(),
+  copyDescription: z.boolean().optional(),
   copyLead: z.boolean().optional(),
   copyTeam: z.boolean().optional(),
   copyTags: z.boolean().optional(),
   copyDueDate: z.boolean().optional(),
+  copyAttachments: z.boolean().optional(),
   targetBoardId: z.string().cuid().nullable().optional(),
   targetListId: z.string().cuid().nullable().optional(),
 });

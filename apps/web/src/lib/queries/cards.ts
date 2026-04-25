@@ -119,6 +119,7 @@ export interface FamilyCard {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   dueDate: string | null;
   completedAt: string | null;
+  updatedAt: string;
   list: { id: string; name: string; isArchived: boolean };
   board: { id: string; name: string; color: string | null; icon: string | null };
   members: Array<{
@@ -129,9 +130,14 @@ export interface FamilyCard {
   lead: { id: string; name: string; email: string; avatarUrl: string | null } | null;
 }
 
+export interface FamilyDescendant extends FamilyCard {
+  depth: number; // 1 = filho direto, 2 = neto, 3 = bisneto, ...
+}
+
 export interface CardFamily {
   parent: FamilyCard | null;
-  children: FamilyCard[];
+  siblings: FamilyCard[];
+  descendants: FamilyDescendant[];
 }
 
 export const cardFamilyQuery = (cardId: string) => ({
@@ -142,10 +148,12 @@ export const cardFamilyQuery = (cardId: string) => ({
 export interface CreateChildInput {
   title: string;
   description?: unknown | null;
+  copyDescription?: boolean;
   copyLead?: boolean;
   copyTeam?: boolean;
   copyTags?: boolean;
   copyDueDate?: boolean;
+  copyAttachments?: boolean;
   targetBoardId?: string | null;
   targetListId?: string | null;
 }
