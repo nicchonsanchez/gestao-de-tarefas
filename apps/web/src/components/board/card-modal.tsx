@@ -199,7 +199,7 @@ function CardModalContent({
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <DueDatePicker value={card.dueDate} onChange={(iso) => dueDateMut.mutate(iso)} />
-          <span className="hidden sm:inline-flex">
+          <span className="hidden md:inline-flex">
             <StatusBadge isCompleted={isCompleted} />
           </span>
           <CardMenu

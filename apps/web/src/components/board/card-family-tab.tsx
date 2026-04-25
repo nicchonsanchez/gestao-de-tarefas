@@ -147,14 +147,12 @@ function summary(
 const INDENT_PX = 28; // espaçamento por nível, igual ao Ummense
 
 // Template de colunas progressivo:
-//   - mobile (<sm 640): só título + menu (3 pontos)
-//   - sm-lg (640-1023): título + fluxo+barra + avatares + menu (4 cols)
-//   - lg+ (>=1024): grid completo (6 cols com tempo e prazo)
-// Mudei o breakpoint do grid completo de `md:` (768) pra `lg:` (1024)
-// porque entre 640-1024 o `1fr` ficava < 130px e títulos truncavam pra
-// inicial ("Card filho do 4" → "C.").
+//   - mobile (<sm 640): título (com meta linha embaixo) + avatares + menu (3 cols)
+//   - sm-lg (640-1023): + fluxo+barra (4 cols)
+//   - lg+ (>=1024): + tempo + prazo (6 cols)
+// `auto` na coluna de avatares deixa elas ocuparem só o necessário.
 const ROW_GRID =
-  'grid grid-cols-[minmax(0,1fr)_28px] sm:grid-cols-[minmax(0,1fr)_120px_90px_28px] lg:grid-cols-[minmax(0,1fr)_170px_110px_70px_70px_28px] items-center gap-2 sm:gap-3';
+  'grid grid-cols-[minmax(0,1fr)_auto_28px] sm:grid-cols-[minmax(0,1fr)_120px_auto_28px] lg:grid-cols-[minmax(0,1fr)_170px_110px_70px_70px_28px] items-center gap-2 sm:gap-3';
 
 function dueDateColor(iso: string | null): string {
   if (!iso) return 'text-fg-muted';
@@ -220,9 +218,7 @@ function CurrentCardRow({ card, indent }: { card: CardDetail; indent: number }) 
             <p className="text-fg-muted mb-1.5 truncate text-[11px]">{board?.name ?? '...'}</p>
             <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
           </div>
-          <div className="hidden sm:block">
-            <Avatars members={card.members} />
-          </div>
+          <Avatars members={card.members} />
           <div className="hidden lg:block">
             <RelativeTime date={card.updatedAt} />
           </div>
@@ -398,9 +394,7 @@ function FamilyRow({
             <p className="text-fg-muted mb-1.5 truncate text-[11px]">{family.board.name}</p>
             <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
           </div>
-          <div className="hidden sm:block">
-            <Avatars members={family.members} />
-          </div>
+          <Avatars members={family.members} />
           <div className="hidden lg:block">
             <RelativeTime date={family.updatedAt} />
           </div>

@@ -69,7 +69,7 @@ export function DueDatePicker({
       return (
         <>
           <CalendarDays size={14} />
-          <span className="hidden sm:inline">Prazo</span>
+          <span className="hidden md:inline">Prazo</span>
         </>
       );
     }
@@ -78,7 +78,9 @@ export function DueDatePicker({
     return (
       <>
         <CalendarDays size={14} />
-        <span>{label}</span>
+        {/* Em telas estreitas, mostra só o ícone (cor já indica urgência);
+            o texto da data aparece em md+ pra economizar espaço no header */}
+        <span className="hidden md:inline">{label}</span>
       </>
     );
   }
