@@ -13,7 +13,6 @@ import {
   ExternalLink,
   Layers,
   Link as LinkIcon,
-  Loader2,
   Lock,
   MoreHorizontal,
   Paperclip,
@@ -76,11 +75,7 @@ export function CardModal({ boardId }: { boardId: string }) {
         hideClose
         className="h-[100dvh] max-h-[100dvh] w-screen max-w-[100vw] gap-0 overflow-hidden rounded-none p-0 sm:h-[calc(100vh-4rem)] sm:max-h-[960px] sm:w-[calc(100vw-4rem)] sm:max-w-[1200px] sm:rounded-md"
       >
-        {query.isLoading && (
-          <div className="flex h-full items-center justify-center">
-            <Loader2 size={20} className="text-fg-muted animate-spin" />
-          </div>
-        )}
+        {query.isLoading && <CardModalSkeleton />}
         {query.data && <CardModalContent card={query.data} boardId={boardId} onClose={close} />}
         {!query.isLoading && !query.data && (
           <div className="p-8">
@@ -115,8 +110,22 @@ function CardModalContent({
   const [title, setTitle] = useState(card.title);
   useEffect(() => setTitle(card.title), [card.title]);
 
+  // Optimistic update genérico: sobrescreve campo no cache antes do server
+  // confirmar. Em caso de erro, reverte. Linear-style "feels instant".
+  function optimistic<T extends keyof CardDetail>(field: T, value: CardDetail[T]) {
+    const key = cardsQueries.detail(card.id).queryKey;
+    const prev = queryClient.getQueryData<CardDetail>(key);
+    queryClient.setQueryData<CardDetail>(key, (old) => (old ? { ...old, [field]: value } : old));
+    return prev;
+  }
+  function rollback(prev: CardDetail | undefined) {
+    if (prev) queryClient.setQueryData(cardsQueries.detail(card.id).queryKey, prev);
+  }
+
   const titleMut = useMutation({
     mutationFn: (next: string) => updateCard(card.id, { title: next }),
+    onMutate: (next) => ({ prev: optimistic('title', next) }),
+    onError: (_e, _v, ctx) => rollback(ctx?.prev),
     onSuccess: invalidate,
   });
 
@@ -127,11 +136,15 @@ function CardModalContent({
 
   const priorityMut = useMutation({
     mutationFn: (priority: CardDetail['priority']) => updateCard(card.id, { priority }),
+    onMutate: (next) => ({ prev: optimistic('priority', next) }),
+    onError: (_e, _v, ctx) => rollback(ctx?.prev),
     onSuccess: invalidate,
   });
 
   const dueDateMut = useMutation({
     mutationFn: (iso: string | null) => updateCard(card.id, { dueDate: iso }),
+    onMutate: (iso) => ({ prev: optimistic('dueDate', iso) }),
+    onError: (_e, _v, ctx) => rollback(ctx?.prev),
     onSuccess: invalidate,
   });
 
@@ -371,6 +384,16 @@ function CardModalContent({
         )}
       </div>
 
+      {/* Rodapé com dica de atalhos — ajuda descobrir teclado sem ser intrusivo */}
+      <div className="border-border bg-bg-subtle/50 hidden shrink-0 items-center justify-end gap-3 border-t px-7 py-1.5 text-[10px] sm:flex">
+        <span className="text-fg-subtle">
+          <Kbd>Esc</Kbd> fechar
+        </span>
+        <span className="text-fg-subtle">
+          <Kbd>⌘</Kbd>/<Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> salvar
+        </span>
+      </div>
+
       <DuplicateCardDialog card={card} open={duplicateOpen} onOpenChange={setDuplicateOpen} />
       <CreateChildCardDialog
         parent={card}
@@ -418,6 +441,70 @@ function Block({
       </div>
       {children}
     </section>
+  );
+}
+
+/**
+ * Skeleton com layout fiel ao modal real (header, sidebar de abas, 2 colunas
+ * de conteúdo). Reduz percepção de espera vs spinner genérico.
+ */
+function CardModalSkeleton() {
+  return (
+    <div className="flex h-full animate-pulse flex-col">
+      {/* Header */}
+      <div className="border-border flex items-start justify-between gap-4 border-b px-7 py-5">
+        <div className="flex-1 space-y-2">
+          <div className="bg-bg-muted h-3 w-32 rounded" />
+          <div className="bg-bg-muted h-6 w-2/3 rounded" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="bg-bg-muted h-8 w-20 rounded" />
+          <div className="bg-bg-muted h-8 w-8 rounded" />
+        </div>
+      </div>
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden">
+        <div className="bg-bg-subtle border-border w-[72px] shrink-0 border-r" />
+        <div className="grid flex-1 grid-cols-1 md:grid-cols-[1fr_400px]">
+          <div className="space-y-7 px-7 py-6">
+            <div className="flex gap-2">
+              <div className="bg-bg-muted h-6 w-6 rounded-full" />
+              <div className="bg-bg-muted h-6 w-24 rounded" />
+            </div>
+            <div className="space-y-2">
+              <div className="bg-bg-muted h-3 w-20 rounded" />
+              <div className="bg-bg-muted h-24 w-full rounded" />
+            </div>
+            <div className="space-y-2">
+              <div className="bg-bg-muted h-3 w-20 rounded" />
+              <div className="flex gap-1.5">
+                <div className="bg-bg-muted h-6 w-14 rounded-full" />
+                <div className="bg-bg-muted h-6 w-14 rounded-full" />
+                <div className="bg-bg-muted h-6 w-14 rounded-full" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="bg-bg-muted h-3 w-20 rounded" />
+              <div className="bg-bg-muted h-12 w-full rounded" />
+            </div>
+          </div>
+          <div className="bg-bg-subtle border-border space-y-3 border-l p-5">
+            <div className="bg-bg-muted h-4 w-24 rounded" />
+            <div className="bg-bg-muted h-16 w-full rounded" />
+            <div className="bg-bg-muted h-12 w-full rounded" />
+            <div className="bg-bg-muted h-12 w-full rounded" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="border-border bg-bg text-fg-muted inline-flex items-center justify-center rounded border px-1 py-0.5 font-mono text-[10px] leading-none">
+      {children}
+    </kbd>
   );
 }
 
