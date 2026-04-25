@@ -39,6 +39,9 @@ import { ChecklistBlock } from './checklist-block';
 import { AttachmentsBlock } from './attachments-block';
 import { DueDatePicker } from './due-date-picker';
 import { DuplicateCardDialog } from './duplicate-card-dialog';
+import { CardSidebarTabs, type CardTab } from './card-sidebar-tabs';
+import { CardFlowsTab } from './card-flows-tab';
+import { CardFamilyTab } from './card-family-tab';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Baixa', classes: 'bg-bg-emphasis text-fg-muted' },
@@ -140,6 +143,7 @@ function CardModalContent({
   });
 
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [tab, setTab] = useState<CardTab>('home');
 
   const deleteMut = useMutation({
     mutationFn: () => deleteCardPermanent(card.id),
@@ -200,122 +204,135 @@ function CardModalContent({
         </div>
       </header>
 
-      {/* Corpo: 2 colunas, cada uma com seu scroll */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_400px]">
-        {/* Coluna esquerda — dados */}
-        <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-6 py-5">
-          {/* Líder + Equipe + Privacidade */}
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <MembersInline card={card} boardId={boardId} />
-            <button
-              type="button"
-              title="Privacidade (em breve)"
-              className="text-fg-muted hover:text-fg disabled:opacity-60"
-              disabled
-            >
-              <Lock size={14} />
-            </button>
+      {/* Corpo: sidebar de abas (esquerda) + conteúdo da aba */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <CardSidebarTabs tab={tab} onChange={setTab} />
+
+        {tab !== 'home' && (
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            {tab === 'flows' && <CardFlowsTab card={card} />}
+            {tab === 'family' && <CardFamilyTab card={card} />}
           </div>
+        )}
 
-          {/* Descrição */}
-          <Block icon={<DescriptionIcon />} label="Descrição">
-            <DescriptionEditor
-              value={description}
-              onSave={(next) => {
-                setDescription(next);
-                descMut.mutate(next);
-              }}
-            />
-          </Block>
-
-          {/* Tags (labels) */}
-          <Block icon={<Tag size={14} />} label="Tags">
-            {card.labels.length === 0 ? (
-              <p className="text-fg-muted text-xs">Nenhuma etiqueta.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {card.labels.map((cl) => (
-                  <span
-                    key={cl.labelId}
-                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
-                    style={{ backgroundColor: cl.label.color }}
-                  >
-                    {cl.label.name}
-                  </span>
-                ))}
+        {tab === 'home' && (
+          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_400px]">
+            {/* Coluna esquerda — dados */}
+            <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-6 py-5">
+              {/* Líder + Equipe + Privacidade */}
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <MembersInline card={card} boardId={boardId} />
+                <button
+                  type="button"
+                  title="Privacidade (em breve)"
+                  className="text-fg-muted hover:text-fg disabled:opacity-60"
+                  disabled
+                >
+                  <Lock size={14} />
+                </button>
               </div>
-            )}
-          </Block>
 
-          {/* Contatos (= membros da Org atribuídos ao card) */}
-          <Block icon={<Users size={14} />} label="Contatos">
-            <MemberPicker card={card} boardId={boardId} />
-          </Block>
+              {/* Descrição */}
+              <Block icon={<DescriptionIcon />} label="Descrição">
+                <DescriptionEditor
+                  value={description}
+                  onSave={(next) => {
+                    setDescription(next);
+                    descMut.mutate(next);
+                  }}
+                />
+              </Block>
 
-          {/* Prioridade + Lista (prazo mora no header) */}
-          <Block icon={<ChevronsUp size={14} />} label="Detalhes">
-            <div className="flex flex-col gap-3">
-              <div>
-                <p className="text-fg-muted mb-1 text-[11px]">Prioridade</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {PRIORITY_OPTIONS.map((opt) => {
-                    const active = card.priority === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => priorityMut.mutate(opt.value)}
-                        disabled={priorityMut.isPending}
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity ${opt.classes} ${
-                          active
-                            ? 'ring-primary ring-offset-bg ring-2 ring-offset-2'
-                            : 'opacity-60 hover:opacity-100'
-                        }`}
+              {/* Tags (labels) */}
+              <Block icon={<Tag size={14} />} label="Tags">
+                {card.labels.length === 0 ? (
+                  <p className="text-fg-muted text-xs">Nenhuma etiqueta.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {card.labels.map((cl) => (
+                      <span
+                        key={cl.labelId}
+                        className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
+                        style={{ backgroundColor: cl.label.color }}
                       >
-                        {opt.value === 'URGENT' && (
-                          <AlertTriangle size={10} className="mr-0.5 inline-block" />
-                        )}
-                        {opt.label}
-                      </button>
-                    );
-                  })}
+                        {cl.label.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Block>
+
+              {/* Contatos (= membros da Org atribuídos ao card) */}
+              <Block icon={<Users size={14} />} label="Contatos">
+                <MemberPicker card={card} boardId={boardId} />
+              </Block>
+
+              {/* Prioridade + Lista (prazo mora no header) */}
+              <Block icon={<ChevronsUp size={14} />} label="Detalhes">
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <p className="text-fg-muted mb-1 text-[11px]">Prioridade</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PRIORITY_OPTIONS.map((opt) => {
+                        const active = card.priority === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => priorityMut.mutate(opt.value)}
+                            disabled={priorityMut.isPending}
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity ${opt.classes} ${
+                              active
+                                ? 'ring-primary ring-offset-bg ring-2 ring-offset-2'
+                                : 'opacity-60 hover:opacity-100'
+                            }`}
+                          >
+                            {opt.value === 'URGENT' && (
+                              <AlertTriangle size={10} className="mr-0.5 inline-block" />
+                            )}
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="text-fg-muted flex items-center gap-2 text-[11px]">
+                    <Layers size={12} />
+                    <span>
+                      Em <span className="text-fg">{card.list.name}</span>
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </Block>
 
-              <div className="text-fg-muted flex items-center gap-2 text-[11px]">
-                <Layers size={12} />
-                <span>
-                  Em <span className="text-fg">{card.list.name}</span>
-                </span>
-              </div>
+              {/* Tarefas do card */}
+              <Block icon={<ChecklistIcon />} label={tarefasDoCardLabel(card)}>
+                <ChecklistBlock card={card} boardId={boardId} />
+              </Block>
+
+              {/* Anexos */}
+              <Block icon={<Paperclip size={14} />} label={`Anexos (${card.attachments.length})`}>
+                <AttachmentsBlock card={card} boardId={boardId} />
+              </Block>
             </div>
-          </Block>
 
-          {/* Tarefas do card */}
-          <Block icon={<ChecklistIcon />} label={tarefasDoCardLabel(card)}>
-            <ChecklistBlock card={card} boardId={boardId} />
-          </Block>
-
-          {/* Anexos */}
-          <Block icon={<Paperclip size={14} />} label={`Anexos (${card.attachments.length})`}>
-            <AttachmentsBlock card={card} boardId={boardId} />
-          </Block>
-        </div>
-
-        {/* Coluna direita — Timeline */}
-        <aside className="border-border bg-bg-subtle flex min-h-0 flex-col overflow-hidden border-t md:border-l md:border-t-0">
-          <div className="border-border flex shrink-0 items-center gap-2 border-b px-5 py-3">
-            <h3 className="text-sm font-semibold">Timeline</h3>
+            {/* Coluna direita — Timeline */}
+            <aside className="border-border bg-bg-subtle flex min-h-0 flex-col overflow-hidden border-t md:border-l md:border-t-0">
+              <div className="border-border flex shrink-0 items-center gap-2 border-b px-5 py-3">
+                <h3 className="text-sm font-semibold">Timeline</h3>
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col px-5 py-3">
+                <TimelineFeed
+                  cardId={card.id}
+                  boardId={boardId}
+                  comments={card.comments}
+                  activities={card.activities}
+                />
+              </div>
+            </aside>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col px-5 py-3">
-            <TimelineFeed
-              cardId={card.id}
-              boardId={boardId}
-              comments={card.comments}
-              activities={card.activities}
-            />
-          </div>
-        </aside>
+        )}
       </div>
 
       <DuplicateCardDialog card={card} open={duplicateOpen} onOpenChange={setDuplicateOpen} />

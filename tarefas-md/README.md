@@ -15,7 +15,14 @@ Sistema de gestão de tarefas da Kharis, inspirado em **Ummense** (funcional) e 
 9. [08 — Infra e Deploy](08-infra-e-deploy.md) — AWS + Vercel, domínios, secrets, CI/CD, custos
 10. [09 — Engine de Automações](09-engine-automacoes.md) — contratos, fluxo, segurança, UI builder
 11. [10 — Deploy em produção](10-deploy-producao.md) — Hetzner + Caddy + CI/CD GitHub Actions, rollback, ops
-12. [Checklist](checklist.md) — rastreador vivo de decisões e entregas
+12. [11 — Coluna "Finalizado"](11-coluna-finalizado.md) — distinta de arquivar; ciclo terminal com restauração
+13. [12 — Redesign do modal do card](12-modal-card-redesign.md) — layout 2 colunas + Timeline unificada
+14. [13 — Cards multi-fluxo](13-cards-multi-fluxo.md) — `CardPresence` M:N, aba "Fluxos" do card (Fase 2)
+15. [14 — Aprovações por cliente](14-aprovacoes-cliente.md) — role REVIEWER + branching automático (Fase 2)
+16. [15 — Cabeçalho do fluxo](15-cabecalho-fluxo.md) — header do board com membros e configurações
+17. [17 — Família de cards](17-familia-cards.md) — hierarquia pai/filho, aba "Família" do card (Fase 2)
+18. [18 — Time tracking](18-time-tracking.md) — cronômetro + entradas manuais + relatórios (Fase 2)
+19. [Checklist](checklist.md) — rastreador vivo de decisões e entregas
 
 ## TL;DR
 

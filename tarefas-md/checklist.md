@@ -195,11 +195,13 @@ Ver `09-engine-automacoes.md` para detalhamento.
 - [ ] Integração Evolution API (CRUD Integration, teste de conexão)
 - [ ] MessageTemplate + WhatsAppMessage
 - [ ] Campos personalizados (tipos core: text, number, date, select, multiselect, email, phone, user)
-- [ ] Time tracking (timer + manual)
+- [ ] **Cards multi-fluxo** (`CardPresence` M:N) — placeholder visual da aba existe; ver [13-cards-multi-fluxo.md](13-cards-multi-fluxo.md)
+- [ ] **Família de cards** (pai/filho com UI completa) — placeholder visual existe; ver [17-familia-cards.md](17-familia-cards.md)
+- [ ] **Time tracking** (cronômetro de cards + entradas manuais + histórico) — botão placeholder existe; ver [18-time-tracking.md](18-time-tracking.md)
+- [ ] **Aprovações por cliente** (role REVIEWER + branching) — ver [14-aprovacoes-cliente.md](14-aprovacoes-cliente.md)
 - [ ] SLA por lista + alertas
 - [ ] Templates de quadro/card/checklist
 - [ ] View Lista (tabela)
-- [ ] Subtarefas (1 nível)
 - [ ] API Tokens + endpoints REST documentados (OpenAPI)
 
 ## Fase 3 — v1.5 (Formulários + Views + Reports)

@@ -57,16 +57,27 @@ Permissão:
 
 ## UX de referência (Ummense)
 
+> Placeholder visual da aba já existe em `apps/web/src/components/board/card-flows-tab.tsx`,
+> renderizando 1 só fluxo (o atual) com botões disabled. Vai virar funcional quando
+> a tabela `CardPresence` chegar.
+
 **Aba "Fluxos" dentro do modal do card:**
 
 - Lista vertical dos fluxos onde o card tem presença ativa
 - Cada fluxo como barra horizontal compacta:
-  - Ícone de relógio (histórico daquele fluxo)
-  - Todas as listas em sequência com a atual destacada
-  - Ícone de check ✓ no fim = "Finalizar nesse fluxo" (não é coluna, é terminal)
-  - Menu `...` por fluxo: remover do fluxo, mover, finalizar
-- Botão "**Vincular a outro fluxo**" → abre modal de busca de fluxos
+  - Header: emoji do fluxo + nome + avatares dos membros do fluxo + cadeado se privado
+  - Linha de cores:
+    - Ícone de relógio (histórico daquele fluxo) — ao clicar abre timeline filtrada por esse fluxo
+    - Todas as listas em sequência (cada coluna como retângulo igualmente largo)
+    - Coluna atual: bg roxo destaque, demais: bg cinza claro
+    - Ícone de check ✓ no fim = "Finalizar nesse fluxo" (não é coluna, é terminal)
+  - Drag handle vertical (6 pontos) à esquerda da linha pra reordenar fluxos
+  - Menu `...` por fluxo: "Visualizar fluxo" (abre o board), "Desvincular card deste fluxo"
+- Botão "**Vincular a outro fluxo**" → abre dropdown com busca de fluxos
+  - Ao escolher, abre seleção de coluna inicial
+  - Cria nova `CardPresence` no banco
 - Toggle "**Exibir fluxos inativados**" → mostra presenças com `removedAt != null`
+- Card de lembrete embaixo: explica que cada fluxo tem ciclo independente
 
 **Coluna Finalizado no Kanban:**
 
