@@ -33,6 +33,23 @@ export type MoveCardRequest = z.infer<typeof MoveCardSchema>;
 export const MemberIdSchema = z.object({ userId: z.string().cuid() });
 export const LabelIdSchema = z.object({ labelId: z.string().cuid() });
 
+export const CreateChildCardSchema = z.object({
+  title: z.string().min(1).max(500).trim(),
+  description: z.any().optional().nullable(),
+  copyLead: z.boolean().optional(),
+  copyTeam: z.boolean().optional(),
+  copyTags: z.boolean().optional(),
+  copyDueDate: z.boolean().optional(),
+  targetBoardId: z.string().cuid().nullable().optional(),
+  targetListId: z.string().cuid().nullable().optional(),
+});
+export type CreateChildCardRequest = z.infer<typeof CreateChildCardSchema>;
+
+export const SetParentSchema = z.object({
+  parentCardId: z.string().cuid().nullable(),
+});
+export type SetParentRequest = z.infer<typeof SetParentSchema>;
+
 export const DuplicateCardSchema = z
   .object({
     copyDescription: z.boolean().optional(),

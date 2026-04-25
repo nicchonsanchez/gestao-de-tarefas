@@ -39,6 +39,7 @@ import { ChecklistBlock } from './checklist-block';
 import { AttachmentsBlock } from './attachments-block';
 import { DueDatePicker } from './due-date-picker';
 import { DuplicateCardDialog } from './duplicate-card-dialog';
+import { CreateChildCardDialog } from './create-child-card-dialog';
 import { CardSidebarTabs, type CardTab } from './card-sidebar-tabs';
 import { CardFlowsTab } from './card-flows-tab';
 import { CardFamilyTab } from './card-family-tab';
@@ -143,6 +144,7 @@ function CardModalContent({
   });
 
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [createChildOpen, setCreateChildOpen] = useState(false);
   const [tab, setTab] = useState<CardTab>('home');
 
   const deleteMut = useMutation({
@@ -185,6 +187,7 @@ function CardModalContent({
               if (confirm('Arquivar este card?')) archiveMut.mutate();
             }}
             onDuplicate={() => setDuplicateOpen(true)}
+            onCreateChild={() => setCreateChildOpen(true)}
             onDelete={() => {
               const confirmation = prompt(
                 `Excluir "${card.title}" permanentemente?\n\nEsta ação é IRREVERSÍVEL — o card, comentários, checklists e anexos serão apagados.\n\nDigite "EXCLUIR" para confirmar:`,
@@ -336,6 +339,11 @@ function CardModalContent({
       </div>
 
       <DuplicateCardDialog card={card} open={duplicateOpen} onOpenChange={setDuplicateOpen} />
+      <CreateChildCardDialog
+        parent={card}
+        open={createChildOpen}
+        onOpenChange={setCreateChildOpen}
+      />
     </div>
   );
 }
@@ -474,6 +482,7 @@ function CardMenu({
   onArchive,
   onDuplicate,
   onDelete,
+  onCreateChild,
   busy,
 }: {
   cardId: string;
@@ -481,6 +490,7 @@ function CardMenu({
   onArchive: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onCreateChild: () => void;
   busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -526,7 +536,14 @@ function CardMenu({
                 onDuplicate();
               }}
             />
-            <MenuItem disabled label="Criar card filho" icon={<Copy size={14} />} />
+            <MenuItem
+              label="Criar card filho"
+              icon={<Copy size={14} />}
+              onClick={() => {
+                setOpen(false);
+                onCreateChild();
+              }}
+            />
             <MenuItem disabled label="Tornar filho de..." icon={<Copy size={14} />} />
             <div className="border-border my-1 border-t" />
             <MenuItem

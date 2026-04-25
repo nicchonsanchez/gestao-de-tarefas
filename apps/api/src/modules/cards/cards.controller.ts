@@ -16,10 +16,14 @@ import {
   MemberIdSchema,
   LabelIdSchema,
   DuplicateCardSchema,
+  CreateChildCardSchema,
+  SetParentSchema,
   type CreateCardRequest,
   type UpdateCardRequest,
   type MoveCardRequest,
   type DuplicateCardRequest,
+  type CreateChildCardRequest,
+  type SetParentRequest,
 } from './dto/card.schemas';
 
 @ApiTags('cards')
@@ -88,6 +92,38 @@ export class CardsController {
     @Param('cardId') cardId: string,
   ) {
     return this.cards.restore(user.userId, org, cardId);
+  }
+
+  @Get(':cardId/family')
+  @ApiOperation({ summary: 'Pai e filhos diretos do card' })
+  getFamily(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('cardId') cardId: string,
+  ) {
+    return this.cards.getFamily(user.userId, org, cardId);
+  }
+
+  @Post(':cardId/children')
+  @ApiOperation({ summary: 'Cria filho a partir do card atual' })
+  createChild(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('cardId') cardId: string,
+    @Body(new ZodValidationPipe(CreateChildCardSchema)) body: CreateChildCardRequest,
+  ) {
+    return this.cards.createChild(user.userId, org, cardId, body);
+  }
+
+  @Patch(':cardId/parent')
+  @ApiOperation({ summary: 'Vincula/desvincula card pai (parentCardId)' })
+  setParent(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('cardId') cardId: string,
+    @Body(new ZodValidationPipe(SetParentSchema)) body: SetParentRequest,
+  ) {
+    return this.cards.setParent(user.userId, org, cardId, body.parentCardId);
   }
 
   @Post(':cardId/duplicate')

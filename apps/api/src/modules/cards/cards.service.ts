@@ -559,6 +559,261 @@ export class CardsService {
     return { count: created.length, cards: created };
   }
 
+  /** ----------------- Família (pai/filho) ----------------- */
+
+  /**
+   * Lista a família de um card: pai (se houver) + filhos diretos com info
+   * de board/lista (pra renderizar mini-progresso por filho).
+   */
+  async getFamily(userId: string, tenant: TenantContext, cardId: string) {
+    const card = await this.getCardOrThrow(cardId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'VIEWER');
+
+    const include = {
+      list: { select: { id: true, name: true, isArchived: true } },
+      board: { select: { id: true, name: true, color: true, icon: true } },
+      members: {
+        include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+      },
+      lead: { select: { id: true, name: true, email: true, avatarUrl: true } },
+    } as const;
+
+    const [parent, children] = await Promise.all([
+      card.parentCardId
+        ? this.prisma.card.findUnique({ where: { id: card.parentCardId }, include })
+        : Promise.resolve(null),
+      this.prisma.card.findMany({
+        where: {
+          parentCardId: cardId,
+          organizationId: tenant.organizationId,
+          isArchived: false,
+        },
+        orderBy: { createdAt: 'asc' },
+        include,
+      }),
+    ]);
+
+    return { parent, children };
+  }
+
+  /**
+   * Cria filho a partir do card atual. Reusa lógica de `duplicate` (com flags
+   * de copy), mas grava `parentCardId` no novo card e tem activity própria.
+   */
+  async createChild(
+    userId: string,
+    tenant: TenantContext,
+    parentId: string,
+    input: {
+      title: string;
+      description?: Prisma.InputJsonValue | null;
+      copyLead?: boolean;
+      copyTeam?: boolean;
+      copyTags?: boolean;
+      copyDueDate?: boolean;
+      targetBoardId?: string | null;
+      targetListId?: string | null;
+    },
+  ) {
+    const parent = await this.prisma.card.findUnique({
+      where: { id: parentId },
+      include: { labels: true, members: true },
+    });
+    if (!parent || parent.organizationId !== tenant.organizationId) {
+      throw new NotFoundException('Card pai não encontrado.');
+    }
+    await this.access.assertAccess(userId, parent.boardId, tenant, 'EDITOR');
+
+    let destBoardId = parent.boardId;
+    let destListId = parent.listId;
+
+    if (input.targetBoardId && input.targetListId) {
+      const destList = await this.prisma.list.findUnique({
+        where: { id: input.targetListId },
+      });
+      if (!destList || destList.boardId !== input.targetBoardId || destList.isArchived) {
+        throw new BadRequestException('Lista destino inválida.');
+      }
+      const destBoard = await this.prisma.board.findUnique({
+        where: { id: input.targetBoardId },
+      });
+      if (!destBoard || destBoard.organizationId !== tenant.organizationId) {
+        throw new NotFoundException('Quadro destino não encontrado.');
+      }
+      await this.access.assertAccess(userId, input.targetBoardId, tenant, 'EDITOR');
+      destBoardId = input.targetBoardId;
+      destListId = input.targetListId;
+    }
+
+    // Vai pro fim da lista destino
+    const last = await this.prisma.card.findFirst({
+      where: { listId: destListId, isArchived: false, completedAt: null },
+      orderBy: { position: 'desc' },
+      select: { position: true },
+    });
+    const position = computeInsertPosition(last?.position ?? null, null);
+
+    const crossBoard = destBoardId !== parent.boardId;
+
+    // Tags do mesmo board: ok; Tags Org-globais: ok; específicas de outro board: pula
+    const labelDefs =
+      input.copyTags !== false && parent.labels.length > 0
+        ? await this.prisma.label.findMany({
+            where: { id: { in: parent.labels.map((l) => l.labelId) } },
+            select: { id: true, boardId: true },
+          })
+        : [];
+    const labelsToCopy = crossBoard
+      ? labelDefs.filter((l) => l.boardId === null).map((l) => l.id)
+      : parent.labels.map((l) => l.labelId);
+
+    const child = await this.prisma.$transaction(async (tx) => {
+      const newCard = await tx.card.create({
+        data: {
+          organizationId: parent.organizationId,
+          boardId: destBoardId,
+          listId: destListId,
+          title: input.title,
+          description: (input.description ?? undefined) as Prisma.InputJsonValue | undefined,
+          priority: parent.priority,
+          startDate: input.copyDueDate ? parent.startDate : null,
+          dueDate: input.copyDueDate ? parent.dueDate : null,
+          parentCardId: parentId,
+          position,
+          createdById: userId,
+          leadId: input.copyLead && parent.leadId ? parent.leadId : userId,
+        },
+      });
+
+      if (labelsToCopy.length > 0) {
+        await tx.cardLabel.createMany({
+          data: labelsToCopy.map((labelId) => ({ cardId: newCard.id, labelId })),
+          skipDuplicates: true,
+        });
+      }
+
+      const teamIds = parent.members.map((m) => m.userId).filter((id) => id !== parent.leadId);
+      const memberIds: string[] = [];
+      if (input.copyLead && parent.leadId) memberIds.push(parent.leadId);
+      if (input.copyTeam !== false) memberIds.push(...teamIds);
+      if (newCard.leadId && !memberIds.includes(newCard.leadId)) memberIds.push(newCard.leadId);
+      if (memberIds.length > 0) {
+        await tx.cardMember.createMany({
+          data: memberIds.map((uid) => ({ cardId: newCard.id, userId: uid })),
+          skipDuplicates: true,
+        });
+      }
+
+      return newCard;
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: parent.organizationId,
+        boardId: destBoardId,
+        cardId: child.id,
+        actorId: userId,
+        type: 'CARD_PARENT_LINKED',
+        payload: { cardId: child.id, parentCardId: parentId, title: child.title },
+      },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_CREATED, {
+      boardId: destBoardId,
+      organizationId: parent.organizationId,
+      actorId: userId,
+      cardId: child.id,
+      listId: destListId,
+      title: child.title,
+    });
+
+    return child;
+  }
+
+  /**
+   * Vincula este card como filho de outro (parentCardId = newParentId)
+   * ou desvincula (newParentId = null).
+   */
+  async setParent(
+    userId: string,
+    tenant: TenantContext,
+    cardId: string,
+    newParentId: string | null,
+  ) {
+    const card = await this.getCardOrThrow(cardId, tenant.organizationId);
+    await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    if (newParentId) {
+      if (newParentId === cardId) {
+        throw new BadRequestException('Um card não pode ser pai dele mesmo.');
+      }
+      const candidate = await this.prisma.card.findUnique({
+        where: { id: newParentId },
+        select: { id: true, organizationId: true },
+      });
+      if (!candidate || candidate.organizationId !== tenant.organizationId) {
+        throw new NotFoundException('Card pai não encontrado.');
+      }
+
+      // Anti-loop: garantir que `newParentId` não é descendente de `cardId`
+      // (caso contrário, ao definir parent criaria ciclo).
+      if (await this.isDescendant(newParentId, cardId)) {
+        throw new BadRequestException(
+          'Não é possível: o pai escolhido é descendente deste card (formaria ciclo).',
+        );
+      }
+    }
+
+    const updated = await this.prisma.card.update({
+      where: { id: cardId },
+      data: { parentCardId: newParentId },
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId: card.boardId,
+        cardId,
+        actorId: userId,
+        type: newParentId ? 'CARD_PARENT_LINKED' : 'CARD_PARENT_UNLINKED',
+        payload: {
+          cardId,
+          fromParentId: card.parentCardId,
+          toParentId: newParentId,
+        } as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    this.events.emit(EVENT_NAMES.CARD_UPDATED, {
+      boardId: card.boardId,
+      organizationId: tenant.organizationId,
+      actorId: userId,
+      cardId,
+    });
+
+    return updated;
+  }
+
+  /**
+   * Verifica se `candidateId` é descendente (filho/neto/...) de `rootId`.
+   * Usado pra prevenir ciclos. Profundidade limitada a 10 níveis.
+   */
+  private async isDescendant(candidateId: string, rootId: string): Promise<boolean> {
+    const visited = new Set<string>();
+    let frontier: string[] = [rootId];
+    for (let depth = 0; depth < 10 && frontier.length > 0; depth++) {
+      const children = await this.prisma.card.findMany({
+        where: { parentCardId: { in: frontier } },
+        select: { id: true },
+      });
+      const childIds = children.map((c) => c.id);
+      if (childIds.includes(candidateId)) return true;
+      frontier = childIds.filter((id) => !visited.has(id));
+      childIds.forEach((id) => visited.add(id));
+    }
+    return false;
+  }
+
   async complete(userId: string, tenant: TenantContext, cardId: string) {
     const card = await this.getCardOrThrow(cardId, tenant.organizationId);
     await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');

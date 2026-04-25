@@ -107,6 +107,59 @@ export function deleteCardPermanent(cardId: string) {
   return api.delete(`/api/v1/cards/${cardId}/permanent`);
 }
 
+/* ----------------- Família (pai/filho) ----------------- */
+
+export interface FamilyCard {
+  id: string;
+  title: string;
+  boardId: string;
+  listId: string;
+  parentCardId: string | null;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  dueDate: string | null;
+  completedAt: string | null;
+  list: { id: string; name: string; isArchived: boolean };
+  board: { id: string; name: string; color: string | null; icon: string | null };
+  members: Array<{
+    cardId: string;
+    userId: string;
+    user: { id: string; name: string; email: string; avatarUrl: string | null };
+  }>;
+  lead: { id: string; name: string; email: string; avatarUrl: string | null } | null;
+}
+
+export interface CardFamily {
+  parent: FamilyCard | null;
+  children: FamilyCard[];
+}
+
+export const cardFamilyQuery = (cardId: string) => ({
+  queryKey: ['cards', cardId, 'family'] as const,
+  queryFn: () => api.get<CardFamily>(`/api/v1/cards/${cardId}/family`),
+});
+
+export interface CreateChildInput {
+  title: string;
+  description?: unknown | null;
+  copyLead?: boolean;
+  copyTeam?: boolean;
+  copyTags?: boolean;
+  copyDueDate?: boolean;
+  targetBoardId?: string | null;
+  targetListId?: string | null;
+}
+
+export function createChildCard(parentId: string, input: CreateChildInput) {
+  return api.post<{ id: string; title: string; listId: string; boardId: string }>(
+    `/api/v1/cards/${parentId}/children`,
+    input,
+  );
+}
+
+export function setCardParent(cardId: string, parentCardId: string | null) {
+  return api.patch(`/api/v1/cards/${cardId}/parent`, { parentCardId });
+}
+
 export function assignMember(cardId: string, userId: string) {
   return api.post(`/api/v1/cards/${cardId}/members`, { userId });
 }
