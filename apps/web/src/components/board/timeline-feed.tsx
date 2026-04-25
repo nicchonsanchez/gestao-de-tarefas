@@ -28,7 +28,7 @@ import {
 } from '@/lib/queries/cards';
 import { ApiError } from '@/lib/api-client';
 import { formatRelativeTime, proseToPlainText } from '@/lib/prose';
-import { activityLabel, activityDetail } from '@/lib/activity-format';
+import { activityParts } from '@/lib/activity-format';
 import { UserAvatar } from '@/components/user-avatar';
 import { useAuthStore } from '@/stores/auth-store';
 import { MentionTextarea } from './mention-textarea';
@@ -303,7 +303,7 @@ export function TimelineFeed({
         ))}
       </div>
 
-      <ul className="flex flex-1 flex-col gap-3 overflow-y-auto pt-3">
+      <ul className="flex flex-1 flex-col gap-5 overflow-y-auto pt-4">
         {items.length === 0 ? (
           <li className="text-fg-muted py-6 text-center text-xs">Nada por aqui ainda.</li>
         ) : (
@@ -371,7 +371,7 @@ function CommentItem({
   const others = attachments.filter((a) => a.kind !== 'IMAGE');
 
   return (
-    <li className="flex gap-2.5">
+    <li className="flex gap-3 py-1">
       <UserAvatar
         name={comment.author.name}
         userId={comment.author.id}
@@ -379,10 +379,12 @@ function CommentItem({
         size="md"
       />
       <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center gap-2 text-xs">
-          <span className="text-fg font-medium">{comment.author.name}</span>
-          <span className="text-fg-subtle">{formatRelativeTime(comment.createdAt)}</span>
-          {comment.editedAt && <span className="text-fg-subtle">· editado</span>}
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className="text-fg text-sm font-semibold">{comment.author.name}</span>
+          <span className="text-fg-subtle text-[11px]">
+            {formatRelativeTime(comment.createdAt)}
+          </span>
+          {comment.editedAt && <span className="text-fg-subtle text-[11px]">· editado</span>}
         </div>
         {editing ? (
           <div className="flex flex-col gap-2">
@@ -551,10 +553,9 @@ function FileChip({
 
 function ActivityItem({ activity }: { activity: ActivityNode }) {
   const actor = activity.actor?.name ?? 'Sistema';
-  const label = activityLabel(activity);
-  const detail = activityDetail(activity);
+  const parts = activityParts(activity);
   return (
-    <li className="flex gap-2.5">
+    <li className="flex gap-3 py-1">
       <UserAvatar
         name={actor}
         userId={activity.actor?.id}
@@ -562,12 +563,23 @@ function ActivityItem({ activity }: { activity: ActivityNode }) {
         size="md"
         muted={!activity.actor}
       />
-      <div className="min-w-0 flex-1 pt-1">
-        <p className="text-xs">
-          <span className="text-fg font-medium">{actor}</span>{' '}
-          <span className="text-fg-muted">{label}</span>
-          {detail && <span className="text-fg-muted"> {detail}</span>}
-          <span className="text-fg-subtle"> · {formatRelativeTime(activity.createdAt)}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-fg text-sm font-semibold">{actor}</span>
+          <span className="text-fg-subtle text-[11px]">
+            {formatRelativeTime(activity.createdAt)}
+          </span>
+        </div>
+        <p className="text-fg-muted mt-0.5 text-sm leading-snug">
+          {parts.map((part, i) =>
+            typeof part === 'string' ? (
+              <span key={i}>{part}</span>
+            ) : (
+              <strong key={i} className="text-fg font-semibold">
+                {part.bold}
+              </strong>
+            ),
+          )}
         </p>
       </div>
     </li>
