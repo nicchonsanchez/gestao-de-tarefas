@@ -229,3 +229,9 @@ Ver `09-engine-automacoes.md` para detalhamento.
 - [ ] Primeiro deploy em produção
 - [ ] Teste de restore de backup (após 30d)
 - [ ] Runbook de incidente (quando atingir uso interno amplo)
+
+---
+
+## Workflow & colaboração com Claude
+
+- [ ] **Migrar cron de retomada do Modo Independente da máquina local pra agente remoto na nuvem (Anthropic CCR + GitHub).** Hoje (2026-04-25) optei por cron local via Windows Task Scheduler porque não precisa `/web-setup` e usa `git` local que já está autenticado. Migrar quando: (a) precisar rodar Modo Independente com notebook desligado / em viagem, OU (b) ficar incômodo deixar a máquina ligada toda noite. Pré-requisito: rodar `/web-setup` no Claude Code e autorizar GitHub. Detalhes técnicos do protocolo no `feedback_modo_independente.md` (memória).

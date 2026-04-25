@@ -70,3 +70,6 @@ ChatGPT Image*.png
 
 # Pasta de processamento de favicon
 tmp-favicon/
+
+# Artefatos locais do Claude Code (sessão, locks, settings.local)
+.claude/
