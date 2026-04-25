@@ -7,19 +7,35 @@ import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { UserAvatar } from '@/components/user-avatar';
 import type { CardListItem } from '@/lib/queries/boards';
 
-const PRIORITY_COLOR: Record<CardListItem['priority'], string> = {
+// Prioridade segue princípio de **de-emphasis** (§0.1 doc 20):
+// - MEDIUM (default): NÃO renderiza chip — médio = padrão, não merece destaque
+// - LOW: chip discreto neutro
+// - HIGH/URGENT: chip colorido pra chamar atenção
+const PRIORITY_COLOR: Record<Exclude<CardListItem['priority'], 'MEDIUM'>, string> = {
   LOW: 'bg-bg-emphasis text-fg-muted',
-  MEDIUM: 'bg-info/15 text-info',
   HIGH: 'bg-warning-subtle text-warning',
   URGENT: 'bg-danger-subtle text-danger',
 };
 
-const PRIORITY_LABEL: Record<CardListItem['priority'], string> = {
+const PRIORITY_LABEL: Record<Exclude<CardListItem['priority'], 'MEDIUM'>, string> = {
   LOW: 'Baixa',
-  MEDIUM: 'Média',
   HIGH: 'Alta',
   URGENT: 'Urgente',
 };
+
+function dueState(iso: string | null): {
+  show: boolean;
+  classes: string;
+  label?: string;
+} {
+  if (!iso) return { show: false, classes: '' };
+  const ms = new Date(iso).getTime() - Date.now();
+  const days = ms / 86_400_000;
+  if (days < 0) return { show: true, classes: 'text-danger font-semibold', label: 'Vencido' };
+  if (days < 1) return { show: true, classes: 'text-danger', label: 'Hoje' };
+  if (days < 3) return { show: true, classes: 'text-warning', label: undefined };
+  return { show: true, classes: 'text-fg-muted', label: undefined };
+}
 
 export function CardItem({ card }: { card: CardListItem }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -78,12 +94,15 @@ export function CardOverlay({ card }: { card: CardListItem }) {
 
 function CardInner({ card }: { card: CardListItem }) {
   const hasLabels = card.labels.length > 0;
-  const hasDue = !!card.dueDate;
-  const due = card.dueDate ? new Date(card.dueDate) : null;
-  const isOverdue = due ? due.getTime() < Date.now() : false;
+  const due = dueState(card.dueDate);
+  const showPriorityChip = card.priority !== 'MEDIUM';
+  const hasCounters =
+    card._count.comments > 0 || card._count.checklists > 0 || card._count.attachments > 0;
+  const hasMembers = card.members.length > 0;
+  const hasMetaRow = due.show || hasCounters;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       {hasLabels && (
         <div className="-mx-3 -mt-3 flex h-1 overflow-hidden rounded-t-lg">
           {card.labels.map((l) => (
@@ -97,51 +116,69 @@ function CardInner({ card }: { card: CardListItem }) {
         </div>
       )}
 
-      <p className="line-clamp-3 text-sm font-medium">{card.title}</p>
-
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+      {/* Linha 1: chip de prioridade (só HIGH/URGENT/LOW) — fica no topo
+          quando existe pra dar contexto antes do título */}
+      {showPriorityChip && (
         <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${PRIORITY_COLOR[card.priority]}`}
+          className={`inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${PRIORITY_COLOR[card.priority as Exclude<CardListItem['priority'], 'MEDIUM'>]}`}
         >
-          {card.priority === 'URGENT' && <AlertTriangle size={10} />}
-          {PRIORITY_LABEL[card.priority]}
+          {card.priority === 'URGENT' && <AlertTriangle size={9} />}
+          {PRIORITY_LABEL[card.priority as Exclude<CardListItem['priority'], 'MEDIUM'>]}
         </span>
+      )}
 
-        {hasDue && due && (
-          <span
-            className={`inline-flex items-center gap-1 ${
-              isOverdue ? 'text-danger' : 'text-fg-muted'
-            }`}
-          >
-            <Calendar size={12} />
-            {due.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-          </span>
-        )}
+      {/* Título — destaque máximo */}
+      <p className="text-fg line-clamp-3 text-sm font-medium leading-snug">{card.title}</p>
 
-        {card._count.comments > 0 && (
-          <span className="text-fg-muted inline-flex items-center gap-1">
-            <MessageSquare size={12} />
-            {card._count.comments}
-          </span>
-        )}
+      {/* Meta row (prazo + contadores) — discreta, só aparece se há algo */}
+      {hasMetaRow && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+          {due.show && card.dueDate && (
+            <span className={`inline-flex items-center gap-1 ${due.classes}`}>
+              <Calendar size={11} />
+              {due.label ??
+                new Date(card.dueDate).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: 'short',
+                })}
+            </span>
+          )}
 
-        {card._count.checklists > 0 && (
-          <span className="text-fg-muted inline-flex items-center gap-1">
-            <CheckSquare size={12} />
-            {card._count.checklists}
-          </span>
-        )}
+          {card._count.comments > 0 && (
+            <span
+              className="text-fg-muted inline-flex items-center gap-1"
+              title={`${card._count.comments} comentário(s)`}
+            >
+              <MessageSquare size={11} />
+              {card._count.comments}
+            </span>
+          )}
 
-        {card._count.attachments > 0 && (
-          <span className="text-fg-muted inline-flex items-center gap-1">
-            <Paperclip size={12} />
-            {card._count.attachments}
-          </span>
-        )}
-      </div>
+          {card._count.checklists > 0 && (
+            <span
+              className="text-fg-muted inline-flex items-center gap-1"
+              title={`${card._count.checklists} checklist(s)`}
+            >
+              <CheckSquare size={11} />
+              {card._count.checklists}
+            </span>
+          )}
 
-      {card.members.length > 0 && (
-        <div className="flex -space-x-1.5">
+          {card._count.attachments > 0 && (
+            <span
+              className="text-fg-muted inline-flex items-center gap-1"
+              title={`${card._count.attachments} anexo(s)`}
+            >
+              <Paperclip size={11} />
+              {card._count.attachments}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Avatares — última linha, alinhados à direita pra equilíbrio visual */}
+      {hasMembers && (
+        <div className="flex justify-end -space-x-1.5 pt-0.5">
           {card.members.slice(0, 4).map((m) => (
             <UserAvatar
               key={m.user.id}

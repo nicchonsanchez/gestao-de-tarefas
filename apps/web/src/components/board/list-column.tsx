@@ -196,7 +196,14 @@ export function ListColumn({ list, children }: { list: ListWithCards; children: 
         )}
       </div>
 
-      <div className="flex min-h-[60px] flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 pt-2">
+      <div className="flex min-h-[60px] flex-1 flex-col gap-2.5 overflow-y-auto px-2 pb-2 pt-2">
+        {list.cards.length === 0 && draft === null && (
+          <div
+            className={`border-border/70 text-fg-subtle flex flex-1 items-center justify-center rounded-md border border-dashed px-3 py-6 text-center text-[11px] leading-snug transition-colors ${isOver ? 'border-primary/60 bg-primary-subtle/40 text-primary' : ''}`}
+          >
+            {isOver ? 'Solte aqui' : 'Arraste cards pra cá ou clique em + acima'}
+          </div>
+        )}
         {children}
       </div>
     </div>

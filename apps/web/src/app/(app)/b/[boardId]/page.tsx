@@ -311,7 +311,7 @@ export default function BoardPage() {
         onDragEnd={handleDragEnd}
       >
         <div className="flex-1 overflow-x-auto overflow-y-hidden">
-          <div className="inline-flex h-full gap-4 p-4">
+          <div className="inline-flex h-full gap-4 p-4 sm:gap-5 sm:p-6">
             <SortableContext
               items={board.lists.map((l) => `${LIST_SORT_PREFIX}${l.id}`)}
               strategy={horizontalListSortingStrategy}
