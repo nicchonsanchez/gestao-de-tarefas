@@ -288,7 +288,7 @@ export function TimelineFeed({
         </div>
       </form>
 
-      <div className="border-border flex items-center gap-1 border-b pb-2">
+      <div className="border-border flex flex-wrap items-center gap-x-1 gap-y-1 border-b pb-2">
         {TABS.map((t) => (
           <button
             key={t.key}

@@ -146,15 +146,13 @@ function summary(
 
 const INDENT_PX = 28; // espaçamento por nível, igual ao Ummense
 
-// Template de colunas compartilhado entre CurrentCardRow e FamilyRow.
-// Mantém alinhamento vertical entre rows mesmo com indentações diferentes.
-//   col 1 (1fr min 0): título do card
-//   col 2 (180px):     fluxo + mini-progress
-//   col 3 (110px):     avatares
-//   col 4 (75px):      tempo relativo
-//   col 5 (75px):      prazo
-//   col 6 (28px):      menu
-const ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_180px_110px_75px_75px_28px] items-center gap-3';
+// Template de colunas progressivo:
+//   - mobile (<sm 640px): só título + menu (3 pontos). Outras colunas escondem.
+//   - sm-md (640-1024): título + fluxo+barra + avatares + menu
+//   - md+ (>=1024): grid completo (título + fluxo + avatares + tempo + prazo + menu)
+// Garantindo: largura total das fixas <= viewport - margens em cada breakpoint.
+const ROW_GRID =
+  'grid grid-cols-[minmax(0,1fr)_28px] sm:grid-cols-[minmax(0,1fr)_140px_90px_28px] md:grid-cols-[minmax(0,1fr)_180px_110px_75px_75px_28px] items-center gap-2 sm:gap-3';
 
 function dueDateColor(iso: string | null): string {
   if (!iso) return 'text-fg-muted';
@@ -211,14 +209,24 @@ function CurrentCardRow({ card, indent }: { card: CardDetail; indent: number }) 
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{card.title}</p>
+            {/* Em mobile, fluxo+tempo aparecem como meta linha embaixo do título */}
+            <p className="text-fg-muted mt-0.5 truncate text-[11px] sm:hidden">
+              {board?.name ?? '...'} · {formatRelativeTime(card.updatedAt)}
+            </p>
           </div>
-          <div className="min-w-0">
+          <div className="hidden min-w-0 sm:block">
             <p className="text-fg-muted mb-1.5 truncate text-[11px]">{board?.name ?? '...'}</p>
             <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
           </div>
-          <Avatars members={card.members} />
-          <RelativeTime date={card.updatedAt} />
-          <DueDate date={card.dueDate} />
+          <div className="hidden sm:block">
+            <Avatars members={card.members} />
+          </div>
+          <div className="hidden md:block">
+            <RelativeTime date={card.updatedAt} />
+          </div>
+          <div className="hidden md:block">
+            <DueDate date={card.dueDate} />
+          </div>
           <div className="relative shrink-0">
             <button
               type="button"
@@ -380,14 +388,23 @@ function FamilyRow({
         >
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{family.title}</p>
+            <p className="text-fg-muted mt-0.5 truncate text-[11px] sm:hidden">
+              {family.board.name} · {formatRelativeTime(family.updatedAt)}
+            </p>
           </div>
-          <div className="min-w-0">
+          <div className="hidden min-w-0 sm:block">
             <p className="text-fg-muted mb-1.5 truncate text-[11px]">{family.board.name}</p>
             <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
           </div>
-          <Avatars members={family.members} />
-          <RelativeTime date={family.updatedAt} />
-          <DueDate date={family.dueDate} />
+          <div className="hidden sm:block">
+            <Avatars members={family.members} />
+          </div>
+          <div className="hidden md:block">
+            <RelativeTime date={family.updatedAt} />
+          </div>
+          <div className="hidden md:block">
+            <DueDate date={family.dueDate} />
+          </div>
           <div data-row-action className="relative shrink-0">
             <button
               type="button"
