@@ -15,10 +15,11 @@ import { useTimerStore } from '@/stores/timer-store';
  */
 export function ActiveTimerConflictDialog() {
   const queryClient = useQueryClient();
-  const { conflict, closeConflict } = useTimerStore((s) => ({
-    conflict: s.conflict,
-    closeConflict: s.closeConflict,
-  }));
+  // Zustand v5: seletores devem retornar valor primitivo. Objeto novo a cada
+  // render causa loop infinito ("getSnapshot should be cached") — usar
+  // chamadas separadas pra cada slice.
+  const conflict = useTimerStore((s) => s.conflict);
+  const closeConflict = useTimerStore((s) => s.closeConflict);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
