@@ -6,7 +6,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -57,8 +58,13 @@ export default function BoardPage() {
     organizationId: boardQuery.data?.organizationId ?? null,
   });
 
+  // Sensores separados pra mouse e touch.
+  // - Mouse: começa drag a 6px de movimento (rápido pra desktop).
+  // - Touch: long-press 250ms com 5px de tolerância — assim toques curtos
+  //   continuam scrollando a página normalmente, e segurar o card ativa o drag.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
