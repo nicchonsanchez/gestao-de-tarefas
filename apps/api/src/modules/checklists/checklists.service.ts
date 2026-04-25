@@ -63,10 +63,25 @@ export class ChecklistsService {
     const { checklist, card } = await this.getChecklistOrThrow(checklistId, tenant.organizationId);
     await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
 
+    const renamed = input.title !== checklist.title;
+
     const updated = await this.prisma.checklist.update({
       where: { id: checklistId },
       data: { title: input.title },
     });
+
+    if (renamed) {
+      await this.prisma.activity.create({
+        data: {
+          organizationId: tenant.organizationId,
+          boardId: card.boardId,
+          cardId: card.id,
+          actorId: userId,
+          type: 'CHECKLIST_RENAMED',
+          payload: { checklistId, fromTitle: checklist.title, toTitle: input.title },
+        },
+      });
+    }
 
     this.events.emit(EVENT_NAMES.CARD_UPDATED, {
       boardId: card.boardId,
@@ -75,16 +90,25 @@ export class ChecklistsService {
       cardId: card.id,
     });
 
-    // checklist sem uso; mas future-proof
-    void checklist;
     return updated;
   }
 
   async remove(userId: string, tenant: TenantContext, checklistId: string) {
-    const { card } = await this.getChecklistOrThrow(checklistId, tenant.organizationId);
+    const { card, checklist } = await this.getChecklistOrThrow(checklistId, tenant.organizationId);
     await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
 
     await this.prisma.checklist.delete({ where: { id: checklistId } });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId: card.boardId,
+        cardId: card.id,
+        actorId: userId,
+        type: 'CHECKLIST_DELETED',
+        payload: { checklistId, title: checklist.title },
+      },
+    });
 
     this.events.emit(EVENT_NAMES.CARD_UPDATED, {
       boardId: card.boardId,
@@ -118,6 +142,17 @@ export class ChecklistsService {
       data: { checklistId, text: input.text, position },
     });
 
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId: card.boardId,
+        cardId: card.id,
+        actorId: userId,
+        type: 'CHECKLIST_ITEM_CREATED',
+        payload: { itemId: item.id, checklistId, text: item.text },
+      },
+    });
+
     this.events.emit(EVENT_NAMES.CARD_UPDATED, {
       boardId: card.boardId,
       organizationId: tenant.organizationId,
@@ -138,6 +173,7 @@ export class ChecklistsService {
     await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
 
     const isToggling = input.isDone !== undefined && input.isDone !== item.isDone;
+    const isRenaming = input.text !== undefined && input.text !== item.text;
 
     const updated = await this.prisma.checklistItem.update({
       where: { id: itemId },
@@ -164,7 +200,20 @@ export class ChecklistsService {
           cardId: card.id,
           actorId: userId,
           type: input.isDone ? 'CHECKLIST_ITEM_DONE' : 'CHECKLIST_ITEM_UNDONE',
-          payload: { itemId, text: item.text },
+          payload: { itemId, text: updated.text },
+        },
+      });
+    }
+
+    if (isRenaming) {
+      await this.prisma.activity.create({
+        data: {
+          organizationId: tenant.organizationId,
+          boardId: card.boardId,
+          cardId: card.id,
+          actorId: userId,
+          type: 'CHECKLIST_ITEM_RENAMED',
+          payload: { itemId, fromText: item.text, toText: updated.text },
         },
       });
     }
@@ -180,10 +229,21 @@ export class ChecklistsService {
   }
 
   async removeItem(userId: string, tenant: TenantContext, itemId: string) {
-    const { card } = await this.getItemOrThrow(itemId, tenant.organizationId);
+    const { card, item } = await this.getItemOrThrow(itemId, tenant.organizationId);
     await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
 
     await this.prisma.checklistItem.delete({ where: { id: itemId } });
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: tenant.organizationId,
+        boardId: card.boardId,
+        cardId: card.id,
+        actorId: userId,
+        type: 'CHECKLIST_ITEM_DELETED',
+        payload: { itemId, text: item.text },
+      },
+    });
 
     this.events.emit(EVENT_NAMES.CARD_UPDATED, {
       boardId: card.boardId,

@@ -241,16 +241,44 @@ export class CardsService {
         },
       });
     } else {
-      await this.prisma.activity.create({
-        data: {
+      // Detecta campos que mudaram. Em vez de "atualizou o card" genérico,
+      // o payload lista quais campos foram tocados pra o front renderizar
+      // mensagem específica ("alterou a descrição", "mudou o prazo", etc).
+      const changed: string[] = [];
+      if (input.title !== undefined && input.title !== card.title) changed.push('title');
+      if (input.description !== undefined) changed.push('description');
+      if (input.priority !== undefined && input.priority !== card.priority) {
+        changed.push('priority');
+      }
+      const newDue = input.dueDate ? new Date(input.dueDate).toISOString() : null;
+      const oldDue = card.dueDate ? card.dueDate.toISOString() : null;
+      if (input.dueDate !== undefined && newDue !== oldDue) changed.push('dueDate');
+      const newStart = input.startDate ? new Date(input.startDate).toISOString() : null;
+      const oldStart = card.startDate ? card.startDate.toISOString() : null;
+      if (input.startDate !== undefined && newStart !== oldStart) changed.push('startDate');
+      if (
+        input.completedAt !== undefined &&
+        Boolean(input.completedAt) !== Boolean(card.completedAt)
+      ) {
+        // completedAt eh tratado por endpoints proprios (complete/uncomplete);
+        // se vier no update, nao registra (evita duplicar com CARD_COMPLETED)
+      }
+      if (input.estimateMinutes !== undefined && input.estimateMinutes !== card.estimateMinutes) {
+        changed.push('estimateMinutes');
+      }
+
+      if (changed.length > 0) {
+        await this.upsertRecentActivity({
           organizationId: tenant.organizationId,
           boardId: card.boardId,
           cardId,
           actorId: userId,
           type: 'CARD_UPDATED',
-          payload: { cardId, input } as unknown as Prisma.InputJsonValue,
-        },
-      });
+          payload: { cardId, fields: changed },
+          coalesceWindowSec: 60,
+          mergeFields: true,
+        });
+      }
     }
 
     this.events.emit(EVENT_NAMES.CARD_UPDATED, {
@@ -261,6 +289,61 @@ export class CardsService {
     });
 
     return updated;
+  }
+
+  /**
+   * Coalescing de activity: se a última activity do mesmo `actorId/cardId/type`
+   * foi criada há menos de `coalesceWindowSec`, atualiza ela em vez de criar
+   * uma nova. Quando `mergeFields = true`, faz union dos arrays `fields[]`
+   * (caso de CARD_UPDATED — várias mudanças do mesmo user em sequência viram
+   * 1 entrada com todos os campos listados).
+   */
+  private async upsertRecentActivity(input: {
+    organizationId: string;
+    boardId: string | null;
+    cardId: string;
+    actorId: string;
+    type: 'CARD_UPDATED';
+    payload: { cardId: string; fields: string[] };
+    coalesceWindowSec: number;
+    mergeFields: boolean;
+  }) {
+    const since = new Date(Date.now() - input.coalesceWindowSec * 1000);
+    const recent = await this.prisma.activity.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        cardId: input.cardId,
+        actorId: input.actorId,
+        type: input.type,
+        createdAt: { gte: since },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (recent && input.mergeFields) {
+      const prev = (recent.payload ?? {}) as { fields?: string[] };
+      const prevFields = Array.isArray(prev.fields) ? prev.fields : [];
+      const merged = Array.from(new Set([...prevFields, ...input.payload.fields]));
+      await this.prisma.activity.update({
+        where: { id: recent.id },
+        data: {
+          payload: { ...prev, ...input.payload, fields: merged } as Prisma.InputJsonValue,
+          createdAt: new Date(), // bump pro topo do feed
+        },
+      });
+      return;
+    }
+
+    await this.prisma.activity.create({
+      data: {
+        organizationId: input.organizationId,
+        boardId: input.boardId,
+        cardId: input.cardId,
+        actorId: input.actorId,
+        type: input.type,
+        payload: input.payload as unknown as Prisma.InputJsonValue,
+      },
+    });
   }
 
   async move(userId: string, tenant: TenantContext, cardId: string, input: MoveCardInput) {
@@ -289,21 +372,37 @@ export class CardsService {
       },
     });
 
-    await this.prisma.activity.create({
-      data: {
-        organizationId: tenant.organizationId,
-        boardId: card.boardId,
-        cardId,
-        actorId: userId,
-        type: 'CARD_MOVED',
-        payload: {
+    // Só registra activity quando lista mudou (reorder dentro da mesma coluna
+    // não interessa pro feed). Inclui nome das listas no payload pra a UI
+    // renderizar "moveu de A pra B" sem precisar resolver IDs.
+    if (listChanged) {
+      const fromList = await this.prisma.list.findUnique({
+        where: { id: card.listId },
+        select: { name: true },
+      });
+      const board = await this.prisma.board.findUnique({
+        where: { id: card.boardId },
+        select: { name: true },
+      });
+      await this.prisma.activity.create({
+        data: {
+          organizationId: tenant.organizationId,
+          boardId: card.boardId,
           cardId,
-          fromListId: card.listId,
-          toListId: input.toListId,
-          position,
+          actorId: userId,
+          type: 'CARD_MOVED',
+          payload: {
+            cardId,
+            fromListId: card.listId,
+            toListId: input.toListId,
+            fromListName: fromList?.name ?? null,
+            toListName: destList.name,
+            boardName: board?.name ?? null,
+            position,
+          },
         },
-      },
-    });
+      });
+    }
 
     this.events.emit(EVENT_NAMES.CARD_MOVED, {
       boardId: card.boardId,
