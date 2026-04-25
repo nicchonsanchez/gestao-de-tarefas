@@ -1,6 +1,7 @@
 import { RequireAuth } from '@/components/require-auth';
 import { SearchHost } from '@/components/search-host';
 import { Topbar } from '@/components/topbar';
+import { ActiveTimerConflictDialog } from '@/components/time-tracking/active-timer-conflict-dialog';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Topbar />
         <main className="flex-1">{children}</main>
         <SearchHost />
+        <ActiveTimerConflictDialog />
       </div>
     </RequireAuth>
   );

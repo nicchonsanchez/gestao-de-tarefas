@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsBell } from '@/components/notifications-bell';
 import { SearchTrigger } from '@/components/search-host';
 import { UserAvatar } from '@/components/user-avatar';
+import { TimerWidget } from '@/components/time-tracking/timer-widget';
 import { useAuthStore } from '@/stores/auth-store';
 import { logout } from '@/lib/auth';
 
@@ -83,6 +84,7 @@ export function Topbar() {
 
         <div className="flex shrink-0 items-center gap-1.5">
           <SearchTrigger />
+          {user && <TimerWidget />}
           <NotificationsBell />
           <ThemeToggle />
           <div className="bg-border/70 mx-1 h-5 w-px" aria-hidden />
