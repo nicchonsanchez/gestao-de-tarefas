@@ -75,9 +75,8 @@ function FamilyRow({
   highlight?: boolean;
 }) {
   const lists = board.lists ?? [];
-  const totalCols = Math.max(lists.length, 1);
   const currentIdx = lists.findIndex((l) => l.id === card.listId);
-  const filledRatio = currentIdx >= 0 ? (currentIdx + 1) / totalCols : 0;
+  const isCompleted = Boolean(card.completedAt);
 
   return (
     <div
@@ -97,12 +96,27 @@ function FamilyRow({
           {boardItem.icon && <span>{boardItem.icon}</span>}
           <span className="font-medium">{board.name}</span>
         </div>
-        <div className="bg-bg-emphasis mt-2 h-1.5 w-full overflow-hidden rounded-full">
-          <div
-            className="bg-primary h-full transition-all"
-            style={{ width: `${Math.max(filledRatio * 100, 8)}%` }}
-            aria-label={`Progresso aproximado da coluna atual`}
-          />
+        {/* Mini-colunas do fluxo com anteriores + atual preenchidas */}
+        <div
+          className="mt-2 flex h-2 w-full gap-[2px] overflow-hidden rounded-full"
+          title={currentIdx >= 0 ? `Coluna atual: ${lists[currentIdx]?.name}` : 'Sem coluna atual'}
+        >
+          {lists.length === 0 ? (
+            <div className="bg-bg-emphasis h-full flex-1 rounded-full" />
+          ) : (
+            lists.map((l, idx) => {
+              const isFilled = !isCompleted && currentIdx >= 0 && idx <= currentIdx;
+              const isCurrent = !isCompleted && idx === currentIdx;
+              return (
+                <div
+                  key={l.id}
+                  className={`h-full flex-1 ${
+                    isFilled ? (isCurrent ? 'bg-primary' : 'bg-primary/70') : 'bg-bg-emphasis'
+                  }`}
+                />
+              );
+            })
+          )}
         </div>
       </div>
 

@@ -1,10 +1,15 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, History, Lock, MoreHorizontal, Plus } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, History, Lock, Loader2, MoreHorizontal, Plus } from 'lucide-react';
 
-import { boardsQueries, type BoardDetail, type BoardListItem } from '@/lib/queries/boards';
-import type { CardDetail } from '@/lib/queries/cards';
+import {
+  boardsQueries,
+  moveCard,
+  type BoardDetail,
+  type BoardListItem,
+} from '@/lib/queries/boards';
+import { cardsQueries, type CardDetail } from '@/lib/queries/cards';
 import { UserAvatar } from '@/components/user-avatar';
 
 /**
@@ -80,6 +85,16 @@ function FlowRow({
 }) {
   const lists = board.lists ?? [];
   const isCompleted = Boolean(card.completedAt);
+  const currentIdx = lists.findIndex((l) => l.id === card.listId);
+  const queryClient = useQueryClient();
+
+  const moveMut = useMutation({
+    mutationFn: (toListId: string) => moveCard(card.id, { toListId, afterCardId: null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardsQueries.detail(card.id).queryKey });
+      queryClient.invalidateQueries({ queryKey: ['boards', board.id] });
+    },
+  });
 
   return (
     <div className="flex flex-col gap-2">
@@ -122,20 +137,33 @@ function FlowRow({
           <History size={14} />
         </div>
 
-        {/* Colunas */}
+        {/* Colunas — clicar move o card pra aquela coluna.
+            Coloridas: atual + todas anteriores (indica "já passou"). */}
         <div className="flex flex-1">
-          {lists.map((l) => {
+          {lists.map((l, idx) => {
             const isCurrent = l.id === card.listId && !isCompleted;
+            const isFilled = !isCompleted && currentIdx >= 0 && idx <= currentIdx;
+            const pending = moveMut.isPending && moveMut.variables === l.id;
             return (
-              <div
+              <button
                 key={l.id}
-                className={`flex flex-1 items-center justify-center px-3 py-2 text-center text-[11px] font-medium ${
-                  isCurrent ? 'bg-primary text-primary-fg' : 'bg-bg-muted text-fg-muted'
-                }`}
-                title={l.name}
+                type="button"
+                onClick={() => {
+                  if (!isCurrent && !moveMut.isPending) moveMut.mutate(l.id);
+                }}
+                disabled={isCurrent || moveMut.isPending}
+                title={isCurrent ? `Coluna atual: ${l.name}` : `Mover para ${l.name}`}
+                className={`group/col relative flex flex-1 items-center justify-center px-3 py-2 text-center text-[11px] font-medium transition-colors ${
+                  isFilled
+                    ? isCurrent
+                      ? 'bg-primary text-primary-fg'
+                      : 'bg-primary/70 text-primary-fg hover:bg-primary'
+                    : 'bg-bg-muted text-fg-muted hover:bg-primary-subtle hover:text-primary'
+                } ${!isCurrent ? 'cursor-pointer' : ''}`}
               >
                 <span className="line-clamp-1">{l.name}</span>
-              </div>
+                {pending && <Loader2 size={10} className="ml-1.5 animate-spin" />}
+              </button>
             );
           })}
         </div>
