@@ -59,3 +59,6 @@ miniodata/
 
 # Misc
 *.pem
+
+# Imagens temporárias
+ChatGPT Image*.png
