@@ -111,9 +111,24 @@ export class BoardsService {
       // Listas default
       await tx.list.createMany({
         data: [
-          { boardId: board.id, name: 'A Fazer', position: 1024 },
-          { boardId: board.id, name: 'Fazendo', position: 2048 },
-          { boardId: board.id, name: 'Concluído', position: 3072 },
+          {
+            organizationId: tenant.organizationId,
+            boardId: board.id,
+            name: 'A Fazer',
+            position: 1024,
+          },
+          {
+            organizationId: tenant.organizationId,
+            boardId: board.id,
+            name: 'Fazendo',
+            position: 2048,
+          },
+          {
+            organizationId: tenant.organizationId,
+            boardId: board.id,
+            name: 'Concluído',
+            position: 3072,
+          },
         ],
       });
 

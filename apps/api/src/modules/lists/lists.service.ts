@@ -47,6 +47,7 @@ export class ListsService {
 
     const list = await this.prisma.list.create({
       data: {
+        organizationId: tenant.organizationId,
         boardId: input.boardId,
         name: input.name,
         position,
