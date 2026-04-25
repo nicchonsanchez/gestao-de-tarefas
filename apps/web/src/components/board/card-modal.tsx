@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Archive,
   CheckCircle2,
+  ChevronRight,
   ChevronsUp,
   Copy,
   ExternalLink,
@@ -16,6 +17,7 @@ import {
   Lock,
   MoreHorizontal,
   Paperclip,
+  Plus,
   Tag,
   Trash2,
   X,
@@ -155,9 +157,19 @@ function CardModalContent({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Header */}
-      <header className="border-border flex flex-wrap items-start justify-between gap-2 border-b px-4 py-3 sm:gap-4 sm:px-6 sm:py-4">
+      {/* Header — eyebrow (lista/status), título grande, ações compactadas */}
+      <header className="border-border flex flex-wrap items-start justify-between gap-2 border-b px-4 py-4 sm:gap-4 sm:px-7 sm:py-5">
         <div className="min-w-0 flex-1">
+          <div className="text-fg-muted mb-1 flex items-center gap-1 text-[11px] font-medium">
+            <Layers size={11} />
+            <span className="truncate">{card.list.name}</span>
+            {card.completedAt && (
+              <>
+                <ChevronRight size={11} />
+                <span className="text-success font-semibold">Finalizado</span>
+              </>
+            )}
+          </div>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -168,11 +180,9 @@ function CardModalContent({
             onKeyDown={(e) => {
               if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             }}
-            className="w-full bg-transparent text-base font-semibold tracking-tight focus:outline-none sm:text-lg"
+            placeholder="Título do card"
+            className="text-fg w-full bg-transparent text-lg font-semibold tracking-tight focus:outline-none sm:text-xl"
           />
-          <p className="text-fg-muted mt-0.5 text-xs">
-            Em <span className="text-fg">{card.list.name}</span>
-          </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <DueDatePicker value={card.dueDate} onChange={(iso) => dueDateMut.mutate(iso)} />
@@ -200,6 +210,7 @@ function CardModalContent({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
+            title="Fechar (Esc)"
             className="text-fg-muted hover:bg-bg-muted hover:text-fg focus-visible:ring-primary inline-flex size-8 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2"
           >
             <X size={16} />
@@ -220,15 +231,18 @@ function CardModalContent({
 
         {tab === 'home' && (
           <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_400px]">
-            {/* Coluna esquerda — dados */}
-            <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-6 py-5">
-              {/* Líder + Equipe + Privacidade */}
+            {/* Coluna esquerda — dados. Ordem: pessoas → conteúdo (descrição) →
+                organização (detalhes/tags) → execução (tarefas/anexos). Cada
+                bloco com heading consistente e respiração generosa. */}
+            <div className="flex min-h-0 flex-col gap-7 overflow-y-auto px-5 py-6 sm:px-7">
+              {/* Pessoas: Líder + Equipe + Privacidade */}
               <div className="flex flex-wrap items-center gap-3 text-xs">
                 <MembersInline card={card} boardId={boardId} />
                 <button
                   type="button"
-                  title="Privacidade (em breve)"
-                  className="text-fg-muted hover:text-fg disabled:opacity-60"
+                  title="Privacidade do card (em breve)"
+                  aria-label="Privacidade (em breve)"
+                  className="text-fg-muted disabled:opacity-60"
                   disabled
                 >
                   <Lock size={14} />
@@ -240,7 +254,7 @@ function CardModalContent({
                 <RichEditor
                   value={card.description}
                   onChange={(doc) => descMut.mutate(doc)}
-                  placeholder="Escrever detalhes do card..."
+                  placeholder="Escreva detalhes, contexto, links… aceita imagens (paste/drop)."
                   isSaving={descMut.isPending}
                   onUploadImage={async (file) => {
                     const att = await uploadAttachment(card.id, file, { embedded: true });
@@ -252,85 +266,99 @@ function CardModalContent({
                 />
               </Block>
 
-              {/* Tags (labels) */}
-              <Block icon={<Tag size={14} />} label="Tags">
-                {card.labels.length === 0 ? (
-                  <p className="text-fg-muted text-xs">Nenhuma etiqueta.</p>
-                ) : (
+              {/* Detalhes (prioridade) */}
+              <Block icon={<ChevronsUp size={14} />} label="Detalhes">
+                <div className="flex flex-col gap-2">
+                  <p className="text-fg-muted text-[11px]">Prioridade</p>
                   <div className="flex flex-wrap gap-1.5">
+                    {PRIORITY_OPTIONS.map((opt) => {
+                      const active = card.priority === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => priorityMut.mutate(opt.value)}
+                          disabled={priorityMut.isPending}
+                          className={`focus-visible:ring-primary rounded-full px-2.5 py-1 text-[11px] font-medium transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${opt.classes} ${
+                            active
+                              ? 'ring-primary ring-offset-bg ring-2 ring-offset-2'
+                              : 'opacity-55 hover:opacity-100'
+                          }`}
+                          aria-pressed={active}
+                          title={`Prioridade: ${opt.label}`}
+                        >
+                          {opt.value === 'URGENT' && (
+                            <AlertTriangle size={10} className="mr-0.5 inline-block" />
+                          )}
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </Block>
+
+              {/* Tags (labels) */}
+              <Block
+                icon={<Tag size={14} />}
+                label="Etiquetas"
+                count={card.labels.length || undefined}
+              >
+                {card.labels.length === 0 ? (
+                  <EmptyHint
+                    text="Adicione etiquetas pra categorizar este card."
+                    actionLabel="Adicionar etiqueta"
+                    actionDisabled
+                    actionTitle="Em breve — gerenciamento completo de etiquetas"
+                  />
+                ) : (
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {card.labels.map((cl) => (
                       <span
                         key={cl.labelId}
-                        className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
+                        className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium text-white"
                         style={{ backgroundColor: cl.label.color }}
                       >
                         {cl.label.name}
                       </span>
                     ))}
+                    <button
+                      type="button"
+                      disabled
+                      title="Em breve — adicionar etiqueta"
+                      className="border-border text-fg-muted inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-[11px] disabled:opacity-60"
+                    >
+                      <Plus size={10} />
+                      Etiqueta
+                    </button>
                   </div>
                 )}
               </Block>
 
-              {/* Prioridade + Lista (prazo mora no header).
-                  O bloco "Contatos" foi removido por equivoco de modelo: no
-                  Ummense "Contatos" significa contatos externos (clientes,
-                  fornecedores) — diferente de membros da equipe. A feature
-                  real esta planejada em tarefas-md/19-contatos-externos.md. */}
-              <Block icon={<ChevronsUp size={14} />} label="Detalhes">
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <p className="text-fg-muted mb-1 text-[11px]">Prioridade</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PRIORITY_OPTIONS.map((opt) => {
-                        const active = card.priority === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => priorityMut.mutate(opt.value)}
-                            disabled={priorityMut.isPending}
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity ${opt.classes} ${
-                              active
-                                ? 'ring-primary ring-offset-bg ring-2 ring-offset-2'
-                                : 'opacity-60 hover:opacity-100'
-                            }`}
-                          >
-                            {opt.value === 'URGENT' && (
-                              <AlertTriangle size={10} className="mr-0.5 inline-block" />
-                            )}
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="text-fg-muted flex items-center gap-2 text-[11px]">
-                    <Layers size={12} />
-                    <span>
-                      Em <span className="text-fg">{card.list.name}</span>
-                    </span>
-                  </div>
-                </div>
-              </Block>
-
               {/* Tarefas do card */}
-              <Block icon={<ChecklistIcon />} label={tarefasDoCardLabel(card)}>
+              <Block icon={<ChecklistIcon />} label="Tarefas do card" count={checklistCounts(card)}>
                 <ChecklistBlock card={card} boardId={boardId} />
               </Block>
 
               {/* Anexos */}
-              <Block icon={<Paperclip size={14} />} label={`Anexos (${card.attachments.length})`}>
+              <Block
+                icon={<Paperclip size={14} />}
+                label="Anexos"
+                count={card.attachments.length || undefined}
+              >
                 <AttachmentsBlock card={card} boardId={boardId} />
               </Block>
             </div>
 
-            {/* Coluna direita — Timeline */}
+            {/* Coluna direita — Timeline (atividade + comentários) */}
             <aside className="border-border bg-bg-subtle flex min-h-0 flex-col overflow-hidden border-t md:border-l md:border-t-0">
-              <div className="border-border flex shrink-0 items-center gap-2 border-b px-5 py-3">
-                <h3 className="text-sm font-semibold">Timeline</h3>
+              <div className="border-border flex shrink-0 items-center justify-between gap-2 border-b px-5 py-4">
+                <div>
+                  <h3 className="text-fg text-sm font-semibold">Timeline</h3>
+                  <p className="text-fg-muted text-[11px]">Anotações e atividade do card</p>
+                </div>
               </div>
-              <div className="flex min-h-0 flex-1 flex-col px-5 py-3">
+              <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
                 <TimelineFeed
                   cardId={card.id}
                   boardId={boardId}
@@ -355,34 +383,73 @@ function CardModalContent({
 
 /* ---------------- sub-componentes ---------------- */
 
-function tarefasDoCardLabel(card: CardDetail): string {
+function checklistCounts(card: CardDetail): string | undefined {
   let total = 0;
   let done = 0;
   for (const cl of card.checklists) {
     total += cl.items.length;
     done += cl.items.filter((it) => it.isDone).length;
   }
-  if (total === 0) return 'Tarefas do card';
-  return `Tarefas do card (${done}/${total})`;
+  if (total === 0) return undefined;
+  return `${done}/${total}`;
 }
 
 function Block({
   icon,
   label,
+  count,
   children,
 }: {
   icon: React.ReactNode;
   label: string;
+  count?: number | string;
   children: React.ReactNode;
 }) {
   return (
     <section>
       <div className="text-fg-muted mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide">
         {icon}
-        {label}
+        <span>{label}</span>
+        {count !== undefined && (
+          <span className="text-fg-subtle text-[10px] font-normal normal-case tracking-normal">
+            · {count}
+          </span>
+        )}
       </div>
       {children}
     </section>
+  );
+}
+
+function EmptyHint({
+  text,
+  actionLabel,
+  actionDisabled,
+  actionTitle,
+  onAction,
+}: {
+  text: string;
+  actionLabel?: string;
+  actionDisabled?: boolean;
+  actionTitle?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="border-border/70 bg-bg-subtle/50 flex items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2.5">
+      <p className="text-fg-muted text-[11px] leading-snug">{text}</p>
+      {actionLabel && (
+        <button
+          type="button"
+          onClick={onAction}
+          disabled={actionDisabled}
+          title={actionTitle}
+          className="border-border text-fg-muted hover:border-border-strong hover:text-fg inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Plus size={11} />
+          {actionLabel}
+        </button>
+      )}
+    </div>
   );
 }
 
