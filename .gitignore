@@ -67,3 +67,6 @@ ChatGPT Image*.png
 /*.png
 /*.jpg
 /*.jpeg
+
+# Pasta de processamento de favicon
+tmp-favicon/
