@@ -19,6 +19,7 @@ import { ChecklistsModule } from './modules/checklists/checklists.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { SearchModule } from './modules/search/search.module';
 import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
@@ -78,6 +79,7 @@ import { StorageModule } from './modules/storage/storage.module';
     CommentsModule,
     NotificationsModule,
     RealtimeModule,
+    SearchModule,
     StorageModule,
     HealthModule,
   ],
