@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Loader2, Search, X } from 'lucide-react';
+import { Check, Loader2, Search, UserRoundPlus, X } from 'lucide-react';
 
 import { cardsQueries, orgMembersQuery, updateCard, type CardDetail } from '@/lib/queries/cards';
 import { UserAvatar } from '@/components/user-avatar';
@@ -73,6 +73,7 @@ export function LeadPicker({ card, boardId }: { card: CardDetail; boardId: strin
         }}
         className="hover:ring-primary/40 flex items-center gap-1 rounded-full transition-all hover:ring-2"
         title={card.lead ? `Líder: ${card.lead.name} (clique para trocar)` : 'Definir líder'}
+        aria-label={card.lead ? `Líder: ${card.lead.name}` : 'Definir líder do card'}
       >
         {card.lead ? (
           <UserAvatar
@@ -82,13 +83,34 @@ export function LeadPicker({ card, boardId }: { card: CardDetail; boardId: strin
             size="sm"
           />
         ) : (
-          <span className="border-border/70 text-fg-muted hover:border-primary/50 hover:text-primary flex size-6 items-center justify-center rounded-full border border-dashed text-[10px] font-semibold">
-            ?
+          <span className="bg-bg-muted text-fg-muted hover:bg-bg-emphasis hover:text-fg flex size-6 items-center justify-center rounded-full transition-colors">
+            <UserRoundPlus size={13} />
           </span>
         )}
       </button>
       {open && (
-        <div className="border-border bg-bg absolute left-0 top-full z-30 mt-1 flex w-64 flex-col overflow-hidden rounded-md border shadow-lg">
+        <div className="border-border bg-bg absolute left-0 top-full z-30 mt-1 flex w-72 flex-col overflow-hidden rounded-md border shadow-lg">
+          <div className="border-border/70 flex items-start justify-between gap-2 border-b px-3 py-2.5">
+            <div className="flex items-start gap-2">
+              <span className="bg-bg-muted text-fg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+                <UserRoundPlus size={13} />
+              </span>
+              <div>
+                <p className="text-sm font-semibold leading-tight">Líder do card</p>
+                <p className="text-fg-muted text-[11px] leading-tight">
+                  Adicione, remova ou alterne entre usuários.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-fg-muted hover:bg-bg-muted hover:text-fg shrink-0 rounded p-0.5"
+              aria-label="Fechar"
+            >
+              <X size={13} />
+            </button>
+          </div>
           <div className="border-border/70 flex items-center gap-2 border-b px-2 py-1.5">
             <Search size={12} className="text-fg-muted" />
             <input

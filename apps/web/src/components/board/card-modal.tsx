@@ -27,6 +27,7 @@ import {
   archiveCard,
   cardsQueries,
   deleteCardPermanent,
+  unassignMember,
   updateCard,
   type CardDetail,
 } from '@/lib/queries/cards';
@@ -35,6 +36,7 @@ import { UserAvatar } from '@/components/user-avatar';
 import { TimelineFeed } from './timeline-feed';
 import { MemberPicker } from './member-picker';
 import { LeadPicker } from './lead-picker';
+import { TeamPicker } from './team-picker';
 import { ChecklistBlock } from './checklist-block';
 import { AttachmentsBlock } from './attachments-block';
 import { DueDatePicker } from './due-date-picker';
@@ -615,25 +617,32 @@ function MenuItem({
 }
 
 function MembersInline({ card, boardId }: { card: CardDetail; boardId: string }) {
+  const queryClient = useQueryClient();
   // "Equipe" = membros do card que não são o líder atual
   const team = card.members.filter((m) => m.userId !== card.leadId);
+
+  const unassignMut = useMutation({
+    mutationFn: (userId: string) => unassignMember(card.id, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardsQueries.detail(card.id).queryKey });
+      queryClient.invalidateQueries({ queryKey: ['boards', boardId] });
+    },
+  });
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       <LeadPicker card={card} boardId={boardId} />
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         <span className="text-fg-muted text-[11px] uppercase tracking-wide">Equipe</span>
-        {team.length === 0 ? (
-          <span className="text-fg-subtle text-[11px]">—</span>
-        ) : (
-          <div className="flex -space-x-1.5">
+        <TeamPicker card={card} boardId={boardId} />
+        {team.length > 0 && (
+          <div className="flex items-center -space-x-1.5">
             {team.slice(0, 4).map((m) => (
-              <UserAvatar
+              <RemovableTeamAvatar
                 key={m.userId}
-                name={m.user.name}
-                userId={m.user.id}
-                avatarUrl={m.user.avatarUrl}
-                size="sm"
-                stacked
+                user={m.user}
+                onRemove={() => unassignMut.mutate(m.userId)}
+                disabled={unassignMut.isPending}
               />
             ))}
             {team.length > 4 && (
@@ -645,6 +654,32 @@ function MembersInline({ card, boardId }: { card: CardDetail; boardId: string })
         )}
       </div>
     </div>
+  );
+}
+
+function RemovableTeamAvatar({
+  user,
+  onRemove,
+  disabled,
+}: {
+  user: { id: string; name: string; avatarUrl: string | null };
+  onRemove: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <span className="group/ta relative inline-flex">
+      <UserAvatar name={user.name} userId={user.id} avatarUrl={user.avatarUrl} size="sm" stacked />
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={disabled}
+        className="bg-bg border-bg text-fg-muted hover:text-danger absolute -right-1 -top-1 hidden size-3.5 items-center justify-center rounded-full border shadow-sm disabled:opacity-50 group-hover/ta:flex"
+        aria-label={`Remover ${user.name}`}
+        title="Remover do card"
+      >
+        <X size={9} />
+      </button>
+    </span>
   );
 }
 
