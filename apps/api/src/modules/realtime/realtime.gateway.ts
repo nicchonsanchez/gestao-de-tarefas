@@ -27,6 +27,8 @@ import type {
   ListUpdatedPayload,
   CommentAddedPayload,
   NotificationCreatedPayload,
+  TimeEntryStartedPayload,
+  TimeEntryStoppedPayload,
 } from './events.types';
 import { EVENT_NAMES } from './events.types';
 
@@ -199,6 +201,18 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   @OnEvent(EVENT_NAMES.NOTIFICATION_CREATED)
   onNotificationCreated(payload: NotificationCreatedPayload) {
     this.io.to(`user:${payload.userId}`).emit('notification.created', payload);
+  }
+
+  @OnEvent(EVENT_NAMES.TIME_ENTRY_STARTED)
+  onTimeEntryStarted(payload: TimeEntryStartedPayload) {
+    this.broadcastBoard(payload, 'time.entry.started', payload);
+    this.io.to(`user:${payload.userId}`).emit('time.entry.started', payload);
+  }
+
+  @OnEvent(EVENT_NAMES.TIME_ENTRY_STOPPED)
+  onTimeEntryStopped(payload: TimeEntryStoppedPayload) {
+    this.broadcastBoard(payload, 'time.entry.stopped', payload);
+    this.io.to(`user:${payload.userId}`).emit('time.entry.stopped', payload);
   }
 
   // -----------------------------------------------------------------

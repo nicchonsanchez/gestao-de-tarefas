@@ -21,6 +21,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { SearchModule } from './modules/search/search.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { StorageModule } from './modules/storage/storage.module';
     RealtimeModule,
     SearchModule,
     StorageModule,
+    TimeTrackingModule,
     HealthModule,
   ],
 })

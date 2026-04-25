@@ -45,3 +45,6 @@ Mensagens curtas, sem emoji.
 ## Log
 
 2026-04-25T02:21 — Ativação. Foco: cronômetro de cards (doc 18, etapas 1–7) + checklist em fallback. Batch #1 de 11 crons sendo armado. Registro de 02:21.
+2026-04-25T02:48 — Crons internos do Claude descartados (são session-only, não sobrevivem a 5h limit). Adotado infra OS via Windows Task Scheduler ("Modo Independente Tick" rodando a cada 30min) — registry em `C:\Users\NoteBook1\.claude\modo-independente-active.json`. Projeto registrado com sucesso. Tick log mostra task viva. Registro de 02:48.
+2026-04-25T02:48 — Iniciando etapa 1 doc 18: schema TimeEntry + migration + endpoints básicos. Registro de 02:48.
+2026-04-25T03:08 — Etapa 1 concluída. Schema TimeEntry + enum TimeEntrySource + 5 ActivityTypes (TIME*ENTRY*\*) aplicados. Migration `20260425055133_time_entry`. Módulo `time-tracking` com 9 endpoints (start, stop, active, manual, update, delete, listByCard, timesheet, summary), service com permissões (GUEST só próprias, MEMBER por board, OWNER/ADMIN tudo) + transação no start (fecha pendente antes), eventos realtime TIME_ENTRY_STARTED/STOPPED no gateway. API typecheck verde. Registro de 03:08.

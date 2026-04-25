@@ -52,6 +52,11 @@ enum CardOrdering {
   CREATION_DATE
 }
 
+enum TimeEntrySource {
+  TIMER
+  MANUAL
+}
+
 enum Priority {
   LOW
   MEDIUM
@@ -88,6 +93,11 @@ enum ActivityType {
   CARD_LEAD_CHANGED
   CARD_PARENT_LINKED
   CARD_PARENT_UNLINKED
+  TIME_ENTRY_STARTED
+  TIME_ENTRY_STOPPED
+  TIME_ENTRY_CREATED
+  TIME_ENTRY_UPDATED
+  TIME_ENTRY_DELETED
   LABEL_ADDED
   LABEL_REMOVED
   COMMENT_ADDED
@@ -139,6 +149,7 @@ model User {
   attachmentsUploaded Attachment[]
   activities      Activity[]      @relation("ActivityActor")
   notifications   Notification[]
+  timeEntries     TimeEntry[]
 
   @@index([email])
 }
@@ -160,6 +171,7 @@ model Organization {
   boards      Board[]
   labels      Label[]
   activities  Activity[]
+  timeEntries TimeEntry[]
 
   @@index([slug])
 }
@@ -313,6 +325,7 @@ model Card {
   attachments Attachment[]
   comments  Comment[]
   activities Activity[]
+  timeEntries TimeEntry[]
 
   @@index([organizationId])
   @@index([boardId, isArchived])
@@ -468,4 +481,29 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead, createdAt])
+}
+
+// ==================== Time tracking ====================
+
+model TimeEntry {
+  id             String          @id @default(cuid())
+  cardId         String
+  userId         String
+  organizationId String
+  startedAt      DateTime
+  endedAt        DateTime?       // null = sessão ativa
+  durationSec    Int?            // gravado no stop, fonte da verdade pra agregações
+  source         TimeEntrySource @default(TIMER)
+  note           String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  card         Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, startedAt])
+  @@index([userId, startedAt])
+  @@index([organizationId, startedAt])
+  @@index([userId, endedAt]) // achar entry ativa do user em O(1)
 }

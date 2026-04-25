@@ -69,6 +69,20 @@ export interface NotificationCreatedPayload extends UserEventPayload {
   notificationId: string;
 }
 
+export interface TimeEntryStartedPayload extends BoardEventPayload {
+  cardId: string;
+  entryId: string;
+  userId: string;
+  startedAt: string;
+}
+
+export interface TimeEntryStoppedPayload extends BoardEventPayload {
+  cardId: string;
+  entryId: string;
+  userId: string;
+  durationSec: number;
+}
+
 // Mapping helper — normaliza nome do evento para o canal do cliente
 export const EVENT_NAMES = {
   CARD_CREATED: 'board.card.created',
@@ -81,4 +95,6 @@ export const EVENT_NAMES = {
   LIST_UPDATED: 'board.list.updated',
   COMMENT_ADDED: 'board.comment.added',
   NOTIFICATION_CREATED: 'user.notification.created',
+  TIME_ENTRY_STARTED: 'board.time.entry.started',
+  TIME_ENTRY_STOPPED: 'board.time.entry.stopped',
 } as const;
