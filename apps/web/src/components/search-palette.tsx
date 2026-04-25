@@ -184,7 +184,6 @@ function buildFlat(result: SearchResult | undefined): FlatItem[] {
 
 function SearchSections({
   result,
-  flat,
   highlight,
   onGo,
 }: {
@@ -195,10 +194,6 @@ function SearchSections({
 }) {
   if (!result) return null;
   let cursor = 0;
-
-  function indexFor(_localOffset: number, baseOffset: number) {
-    return baseOffset + _localOffset;
-  }
 
   return (
     <div className="flex flex-col py-1">
