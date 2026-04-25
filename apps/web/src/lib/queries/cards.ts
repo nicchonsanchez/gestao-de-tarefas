@@ -45,6 +45,7 @@ export interface CommentNode {
   createdAt: string;
   deletedAt: string | null;
   author: { id: string; name: string; email: string; avatarUrl: string | null };
+  attachments?: Attachment[];
 }
 
 export interface ActivityNode {
@@ -326,6 +327,60 @@ export async function uploadAttachment(
     sizeBytes: file.size,
     storageKey: presign.key,
     embedded: options?.embedded ?? false,
+  });
+}
+
+export function presignAttachmentForComment(
+  commentId: string,
+  input: { fileName: string; contentType: string; sizeBytes: number },
+) {
+  return api.post<AttachmentPresign>(`/api/v1/comments/${commentId}/attachments/presign`, input);
+}
+
+export function createAttachmentForComment(
+  commentId: string,
+  input: { fileName: string; mimeType: string; sizeBytes: number; storageKey: string },
+) {
+  return api.post<Attachment>(`/api/v1/comments/${commentId}/attachments`, input);
+}
+
+/**
+ * Upload completo pra anexo de COMMENT (timeline).
+ * Mesmo fluxo de presign → PUT → create, mas com endpoints específicos do comment.
+ */
+export async function uploadAttachmentForComment(
+  commentId: string,
+  file: File,
+): Promise<Attachment> {
+  const presign = await presignAttachmentForComment(commentId, {
+    fileName: file.name,
+    contentType: file.type || 'application/octet-stream',
+    sizeBytes: file.size,
+  });
+
+  try {
+    const res = await fetch(presign.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    });
+    if (!res.ok) {
+      throw new Error(`Falha no upload (servidor de arquivos respondeu HTTP ${res.status}).`);
+    }
+  } catch (err) {
+    if (err instanceof Error && !/HTTP\s/.test(err.message)) {
+      throw new Error(
+        'Não foi possível enviar o arquivo pro servidor. Verifique sua conexão e tente de novo.',
+      );
+    }
+    throw err;
+  }
+
+  return createAttachmentForComment(commentId, {
+    fileName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    sizeBytes: file.size,
+    storageKey: presign.key,
   });
 }
 

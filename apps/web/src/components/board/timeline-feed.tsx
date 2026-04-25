@@ -1,18 +1,32 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Pencil, Send, Trash2 } from 'lucide-react';
+import {
+  Download,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
+  Paperclip,
+  Pencil,
+  Send,
+  Trash2,
+  X,
+} from 'lucide-react';
 
 import { Button } from '@ktask/ui';
 import {
   cardsQueries,
   createComment,
   deleteComment,
+  removeAttachment,
   updateComment,
+  uploadAttachmentForComment,
   type ActivityNode,
+  type Attachment,
   type CommentNode,
 } from '@/lib/queries/cards';
+import { ApiError } from '@/lib/api-client';
 import { formatRelativeTime, proseToPlainText } from '@/lib/prose';
 import { activityLabel, activityDetail } from '@/lib/activity-format';
 import { UserAvatar } from '@/components/user-avatar';
@@ -27,6 +41,8 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'mine', label: 'Minhas anotações' },
   { key: 'records', label: 'Registros' },
 ];
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB (alinhado com backend)
 
 type FeedItem =
   | { kind: 'comment'; at: string; comment: CommentNode }
@@ -47,15 +63,91 @@ export function TimelineFeed({
   const { user } = useAuthStore();
   const [tab, setTab] = useState<TabKey>('all');
   const [text, setText] = useState('');
+  const [pending, setPending] = useState<File[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileImageRef = useRef<HTMLInputElement>(null);
+  const fileAnyRef = useRef<HTMLInputElement>(null);
+  const dragCounter = useRef(0);
 
-  const createMut = useMutation({
-    mutationFn: () => createComment({ cardId, plainText: text.trim() }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cardsQueries.detail(cardId).queryKey });
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId] });
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: cardsQueries.detail(cardId).queryKey });
+    queryClient.invalidateQueries({ queryKey: ['boards', boardId] });
+  }
+
+  function addFiles(list: FileList | File[]) {
+    const arr = Array.from(list);
+    const tooBig = arr.find((f) => f.size > MAX_FILE_SIZE);
+    if (tooBig) {
+      setError(`"${tooBig.name}" tem mais de 25MB. Limite por arquivo é 25MB.`);
+      return;
+    }
+    setError(null);
+    setPending((prev) => [...prev, ...arr]);
+  }
+
+  function removePending(index: number) {
+    setPending((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmit() {
+    const trimmed = text.trim();
+    if (trimmed.length === 0 && pending.length === 0) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      // Cria comment (mesmo se só tiver anexos, mandamos texto vazio com 1 espaço
+      // pra o backend aceitar — alternativa: ajustar backend pra aceitar body vazio
+      // se houver anexos. Por agora, se só anexos, mando "[anexo]" como placeholder)
+      const placeholder = trimmed.length > 0 ? trimmed : '[anexo]';
+      const created = await createComment({ cardId, plainText: placeholder });
+      // Sobe anexos sequencialmente. Se algum falhar, mostra erro mas mantém os
+      // que subiram (comment já existe).
+      const failed: string[] = [];
+      for (const file of pending) {
+        try {
+          await uploadAttachmentForComment(created.id, file);
+        } catch (err) {
+          failed.push(`${file.name}: ${err instanceof Error ? err.message : 'erro'}`);
+        }
+      }
       setText('');
-    },
-  });
+      setPending([]);
+      invalidate();
+      if (failed.length > 0) {
+        setError(`Alguns anexos falharam:\n${failed.join('\n')}`);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Erro ao enviar anotação.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Drag-drop handlers (formulário)
+  function onDragEnter(e: React.DragEvent) {
+    e.preventDefault();
+    if (Array.from(e.dataTransfer.types).includes('Files')) {
+      dragCounter.current += 1;
+      setDragActive(true);
+    }
+  }
+  function onDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounter.current = Math.max(0, dragCounter.current - 1);
+    if (dragCounter.current === 0) setDragActive(false);
+  }
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragActive(false);
+    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
+  }
 
   const items = useMemo<FeedItem[]>(() => {
     const commentItems = comments
@@ -63,7 +155,6 @@ export function TimelineFeed({
       .map<FeedItem>((c) => ({ kind: 'comment', at: c.createdAt, comment: c }));
 
     const activityItems = activities
-      // activity COMMENT_ADDED duplica o comentário no feed, oculta
       .filter(
         (a) =>
           a.type !== 'COMMENT_ADDED' && a.type !== 'COMMENT_EDITED' && a.type !== 'COMMENT_DELETED',
@@ -71,7 +162,7 @@ export function TimelineFeed({
       .map<FeedItem>((a) => ({ kind: 'activity', at: a.createdAt, activity: a }));
 
     const merged = [...commentItems, ...activityItems];
-    merged.sort((a, b) => (a.at < b.at ? 1 : -1)); // mais recente primeiro
+    merged.sort((a, b) => (a.at < b.at ? 1 : -1));
 
     switch (tab) {
       case 'comments':
@@ -86,32 +177,111 @@ export function TimelineFeed({
   }, [comments, activities, tab, user?.id]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div
+      className="flex h-full flex-col"
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (text.trim().length === 0) return;
-          createMut.mutate();
+          handleSubmit();
         }}
-        className="flex flex-col gap-2 pb-3"
+        className={`flex flex-col gap-2 pb-3 ${dragActive ? 'ring-primary ring-offset-bg rounded-md ring-2 ring-offset-2' : ''}`}
       >
         <MentionTextarea
           value={text}
           onChange={setText}
-          onSubmit={() => {
-            if (text.trim().length > 0) createMut.mutate();
-          }}
+          onSubmit={handleSubmit}
           rows={3}
-          placeholder="Escreva uma anotação neste card. Use @ para mencionar um usuário."
+          placeholder="Escreva uma anotação. Use @ para mencionar. Arraste arquivos aqui ou use os botões abaixo."
         />
-        <div className="flex items-center justify-between">
-          <p className="text-fg-subtle text-[11px]">Ctrl/⌘ + Enter para enviar</p>
+
+        {/* Pending attachments */}
+        {pending.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5">
+            {pending.map((file, i) => (
+              <li
+                key={`${file.name}-${i}`}
+                className="bg-bg-muted border-border inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
+              >
+                {file.type.startsWith('image/') ? (
+                  <ImageIcon size={12} className="text-primary" />
+                ) : (
+                  <FileText size={12} className="text-fg-muted" />
+                )}
+                <span className="max-w-[160px] truncate">{file.name}</span>
+                <span className="text-fg-subtle text-[10px]">{formatBytes(file.size)}</span>
+                <button
+                  type="button"
+                  onClick={() => removePending(i)}
+                  className="text-fg-muted hover:text-danger"
+                  aria-label={`Remover ${file.name}`}
+                >
+                  <X size={11} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {error && (
+          <p className="bg-danger-subtle text-danger whitespace-pre-line rounded-md px-3 py-2 text-xs">
+            {error}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => fileImageRef.current?.click()}
+              className="text-fg-muted hover:bg-bg-muted hover:text-fg inline-flex items-center gap-1 rounded p-1.5 text-[11px]"
+              title="Anexar imagem"
+              aria-label="Anexar imagem"
+            >
+              <ImageIcon size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => fileAnyRef.current?.click()}
+              className="text-fg-muted hover:bg-bg-muted hover:text-fg inline-flex items-center gap-1 rounded p-1.5 text-[11px]"
+              title="Anexar arquivo"
+              aria-label="Anexar arquivo"
+            >
+              <Paperclip size={14} />
+            </button>
+            <input
+              ref={fileImageRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                if (e.target.files) addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={fileAnyRef}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => {
+                if (e.target.files) addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <span className="text-fg-subtle ml-2 text-[11px]">Ctrl/⌘ + Enter envia</span>
+          </div>
           <Button
             type="submit"
             size="sm"
-            disabled={createMut.isPending || text.trim().length === 0}
+            disabled={submitting || (text.trim().length === 0 && pending.length === 0)}
           >
-            {createMut.isPending && <Loader2 size={14} className="animate-spin" />}
+            {submitting && <Loader2 size={14} className="animate-spin" />}
             <Send size={14} />
             Enviar
           </Button>
@@ -171,24 +341,34 @@ function CommentItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
 
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: cardsQueries.detail(cardId).queryKey });
+    queryClient.invalidateQueries({ queryKey: ['boards', boardId] });
+  }
+
   const updateMut = useMutation({
     mutationFn: () => updateComment(comment.id, { plainText: draft.trim() }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cardsQueries.detail(cardId).queryKey });
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId] });
+      invalidate();
       setEditing(false);
     },
   });
 
   const deleteMut = useMutation({
     mutationFn: () => deleteComment(comment.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cardsQueries.detail(cardId).queryKey });
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId] });
-    },
+    onSuccess: invalidate,
+  });
+
+  const removeAttMut = useMutation({
+    mutationFn: (attachmentId: string) => removeAttachment(attachmentId),
+    onSuccess: invalidate,
   });
 
   const plain = proseToPlainText(comment.body);
+  const showPlaceholder = plain === '[anexo]';
+  const attachments = comment.attachments ?? [];
+  const images = attachments.filter((a) => a.kind === 'IMAGE');
+  const others = attachments.filter((a) => a.kind !== 'IMAGE');
 
   return (
     <li className="flex gap-2.5">
@@ -230,15 +410,73 @@ function CommentItem({
           </div>
         ) : (
           <>
-            <div className="bg-bg-muted rounded-md px-3 py-2 text-sm">
-              <p className="whitespace-pre-wrap">{plain}</p>
-            </div>
+            {!showPlaceholder && (
+              <div className="bg-bg-muted rounded-md px-3 py-2 text-sm">
+                <p className="whitespace-pre-wrap">{plain}</p>
+              </div>
+            )}
+
+            {/* Imagens em grade */}
+            {images.length > 0 && (
+              <div
+                className={`mt-2 grid gap-1.5 ${images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}
+              >
+                {images.map((a) => (
+                  <a
+                    key={a.id}
+                    href={a.publicUrl ?? '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group/img border-border bg-bg-subtle relative block overflow-hidden rounded-md border"
+                  >
+                    <img
+                      src={a.publicUrl ?? ''}
+                      alt={a.fileName}
+                      className="h-auto max-h-64 w-full object-cover"
+                      loading="lazy"
+                    />
+                    {isAuthor && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (confirm('Remover esta imagem?')) removeAttMut.mutate(a.id);
+                        }}
+                        disabled={removeAttMut.isPending}
+                        className="bg-bg/90 text-fg-muted hover:text-danger absolute right-1 top-1 hidden size-6 items-center justify-center rounded-full group-hover/img:flex"
+                        aria-label={`Remover ${a.fileName}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {/* Outros arquivos como chips */}
+            {others.length > 0 && (
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {others.map((a) => (
+                  <FileChip
+                    key={a.id}
+                    attachment={a}
+                    canRemove={isAuthor}
+                    onRemove={() => {
+                      if (confirm(`Remover "${a.fileName}"?`)) removeAttMut.mutate(a.id);
+                    }}
+                    removing={removeAttMut.isPending}
+                  />
+                ))}
+              </ul>
+            )}
+
             {isAuthor && (
               <div className="mt-1 flex items-center gap-3 text-[11px]">
                 <button
                   type="button"
                   onClick={() => {
-                    setDraft(plain);
+                    setDraft(showPlaceholder ? '' : plain);
                     setEditing(true);
                   }}
                   className="text-fg-muted hover:text-fg inline-flex items-center gap-1"
@@ -260,6 +498,53 @@ function CommentItem({
           </>
         )}
       </div>
+    </li>
+  );
+}
+
+function FileChip({
+  attachment,
+  canRemove,
+  onRemove,
+  removing,
+}: {
+  attachment: Attachment;
+  canRemove: boolean;
+  onRemove: () => void;
+  removing: boolean;
+}) {
+  return (
+    <li className="bg-bg-muted border-border flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs">
+      <FileText size={14} className="text-fg-muted shrink-0" />
+      <span className="min-w-0 flex-1 truncate font-medium">{attachment.fileName}</span>
+      <span className="text-fg-subtle shrink-0 text-[10px]">
+        {formatBytes(attachment.sizeBytes)}
+      </span>
+      {attachment.publicUrl && (
+        <a
+          href={attachment.publicUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          download={attachment.fileName}
+          className="text-fg-muted hover:text-fg shrink-0 rounded p-0.5"
+          aria-label={`Baixar ${attachment.fileName}`}
+          title="Baixar"
+        >
+          <Download size={12} />
+        </a>
+      )}
+      {canRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={removing}
+          className="text-fg-muted hover:text-danger shrink-0 rounded p-0.5 disabled:opacity-50"
+          aria-label="Remover"
+          title="Remover"
+        >
+          <X size={12} />
+        </button>
+      )}
     </li>
   );
 }
@@ -287,4 +572,10 @@ function ActivityItem({ activity }: { activity: ActivityNode }) {
       </div>
     </li>
   );
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
