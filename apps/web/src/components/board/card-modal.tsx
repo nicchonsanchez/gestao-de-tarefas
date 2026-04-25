@@ -18,7 +18,6 @@ import {
   Paperclip,
   Tag,
   Trash2,
-  Users,
   X,
 } from 'lucide-react';
 
@@ -34,7 +33,6 @@ import {
 import { proseToPlainText } from '@/lib/prose';
 import { UserAvatar } from '@/components/user-avatar';
 import { TimelineFeed } from './timeline-feed';
-import { MemberPicker } from './member-picker';
 import { LeadPicker } from './lead-picker';
 import { TeamPicker } from './team-picker';
 import { ChecklistBlock } from './checklist-block';
@@ -269,12 +267,11 @@ function CardModalContent({
                 )}
               </Block>
 
-              {/* Contatos (= membros da Org atribuídos ao card) */}
-              <Block icon={<Users size={14} />} label="Contatos">
-                <MemberPicker card={card} boardId={boardId} />
-              </Block>
-
-              {/* Prioridade + Lista (prazo mora no header) */}
+              {/* Prioridade + Lista (prazo mora no header).
+                  O bloco "Contatos" foi removido por equivoco de modelo: no
+                  Ummense "Contatos" significa contatos externos (clientes,
+                  fornecedores) — diferente de membros da equipe. A feature
+                  real esta planejada em tarefas-md/19-contatos-externos.md. */}
               <Block icon={<ChevronsUp size={14} />} label="Detalhes">
                 <div className="flex flex-col gap-3">
                   <div>
