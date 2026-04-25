@@ -54,7 +54,7 @@ export function CardFamilyTab({ card }: { card: CardDetail }) {
   const totalDescendants = descendants.length;
 
   return (
-    <div className="flex h-full w-full flex-1 flex-col overflow-y-auto">
+    <div className="flex h-full w-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
       <div className="border-border/60 flex items-center justify-between gap-3 border-b px-6 py-4">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold">Família de cards</h2>
@@ -147,12 +147,14 @@ function summary(
 const INDENT_PX = 28; // espaçamento por nível, igual ao Ummense
 
 // Template de colunas progressivo:
-//   - mobile (<sm 640px): só título + menu (3 pontos). Outras colunas escondem.
-//   - sm-md (640-1024): título + fluxo+barra + avatares + menu
-//   - md+ (>=1024): grid completo (título + fluxo + avatares + tempo + prazo + menu)
-// Garantindo: largura total das fixas <= viewport - margens em cada breakpoint.
+//   - mobile (<sm 640): só título + menu (3 pontos)
+//   - sm-lg (640-1023): título + fluxo+barra + avatares + menu (4 cols)
+//   - lg+ (>=1024): grid completo (6 cols com tempo e prazo)
+// Mudei o breakpoint do grid completo de `md:` (768) pra `lg:` (1024)
+// porque entre 640-1024 o `1fr` ficava < 130px e títulos truncavam pra
+// inicial ("Card filho do 4" → "C.").
 const ROW_GRID =
-  'grid grid-cols-[minmax(0,1fr)_28px] sm:grid-cols-[minmax(0,1fr)_140px_90px_28px] md:grid-cols-[minmax(0,1fr)_180px_110px_75px_75px_28px] items-center gap-2 sm:gap-3';
+  'grid grid-cols-[minmax(0,1fr)_28px] sm:grid-cols-[minmax(0,1fr)_120px_90px_28px] lg:grid-cols-[minmax(0,1fr)_170px_110px_70px_70px_28px] items-center gap-2 sm:gap-3';
 
 function dueDateColor(iso: string | null): string {
   if (!iso) return 'text-fg-muted';
@@ -221,10 +223,10 @@ function CurrentCardRow({ card, indent }: { card: CardDetail; indent: number }) 
           <div className="hidden sm:block">
             <Avatars members={card.members} />
           </div>
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <RelativeTime date={card.updatedAt} />
           </div>
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <DueDate date={card.dueDate} />
           </div>
           <div className="relative shrink-0">
@@ -399,10 +401,10 @@ function FamilyRow({
           <div className="hidden sm:block">
             <Avatars members={family.members} />
           </div>
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <RelativeTime date={family.updatedAt} />
           </div>
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <DueDate date={family.dueDate} />
           </div>
           <div data-row-action className="relative shrink-0">
