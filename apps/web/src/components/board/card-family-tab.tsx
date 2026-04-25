@@ -147,28 +147,119 @@ function summary(
 const INDENT_PX = 28; // espaçamento por nível, igual ao Ummense
 
 function CurrentCardRow({ card, indent }: { card: CardDetail; indent: number }) {
+  const queryClient = useQueryClient();
   const boardQuery = useQuery({ ...boardsQueries.detail(card.boardId) });
   const board = boardQuery.data;
   const lists = board?.lists ?? [];
   const currentIdx = lists.findIndex((l) => l.id === card.listId);
   const isCompleted = Boolean(card.completedAt);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [createChildOpen, setCreateChildOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const duplicateMut = useMutation({
+    mutationFn: () => duplicateCard(card.id, { count: 1 }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardFamilyQuery(card.id).queryKey });
+      queryClient.invalidateQueries({ queryKey: cardsQueries.detail(card.id).queryKey });
+      queryClient.invalidateQueries({ queryKey: ['boards'] });
+    },
+  });
+
+  function cardUrl() {
+    return `${window.location.origin}/b/${card.boardId}?card=${card.id}`;
+  }
+
+  function copyUrl() {
+    navigator.clipboard
+      .writeText(cardUrl())
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {});
+  }
 
   return (
-    <div style={{ paddingLeft: indent * INDENT_PX }} className="relative w-full">
-      <div className="bg-primary-subtle/40 border-primary/40 hover:border-primary/70 relative flex w-full items-center gap-4 rounded-md border p-3 transition-colors">
-        <span className="text-primary absolute -left-2 top-3" aria-label="Card atual">
-          <MapPin size={16} fill="currentColor" />
-        </span>
-        <div className="min-w-0 flex-1 pl-3">
-          <p className="truncate text-sm font-medium">{card.title}</p>
-          <p className="text-fg-muted mt-1 text-[11px]">{board?.name ?? '...'}</p>
-          <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
+    <>
+      <div style={{ paddingLeft: indent * INDENT_PX }} className="relative w-full">
+        <div className="bg-primary-subtle/40 border-primary/40 hover:border-primary/70 relative flex w-full items-center gap-4 rounded-md border p-3 transition-colors">
+          <span className="text-primary absolute -left-2 top-3" aria-label="Card atual">
+            <MapPin size={16} fill="currentColor" />
+          </span>
+          <div className="min-w-0 flex-1 pl-3">
+            <p className="truncate text-sm font-medium">{card.title}</p>
+            <p className="text-fg-muted mt-1 text-[11px]">{board?.name ?? '...'}</p>
+            <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
+          </div>
+          <Avatars members={card.members} />
+          <RelativeTime date={card.updatedAt} />
+          <DueDate date={card.dueDate} />
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="text-fg-muted hover:bg-bg-muted hover:text-fg rounded p-1"
+              aria-label="Mais ações"
+            >
+              <MoreHorizontal size={14} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="border-border bg-bg absolute right-0 top-full z-20 mt-1 flex w-56 flex-col rounded-md border p-1 text-xs shadow-lg">
+                  <MenuItem
+                    icon={<Copy size={13} />}
+                    label="Duplicar card"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      duplicateMut.mutate();
+                    }}
+                    disabled={duplicateMut.isPending}
+                  />
+                  <MenuItem
+                    icon={<Plus size={13} />}
+                    label="Criar card filho"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setCreateChildOpen(true);
+                    }}
+                  />
+                  <MenuItem
+                    icon={<GitBranch size={13} />}
+                    label="Tornar card filho de..."
+                    disabled
+                    hint="em breve"
+                  />
+                  <div className="border-border/70 my-1 border-t" />
+                  <MenuItem
+                    icon={<LinkIcon size={13} />}
+                    label={copied ? 'URL copiada' : 'Copiar URL do card'}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      copyUrl();
+                    }}
+                  />
+                  <MenuItem
+                    icon={<ExternalLink size={13} />}
+                    label="Abrir card em nova aba"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      window.open(cardUrl(), '_blank', 'noopener');
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
-        <Avatars members={card.members} />
-        <RelativeTime date={card.updatedAt} />
-        <DueDate date={card.dueDate} />
       </div>
-    </div>
+      <CreateChildCardDialog
+        parent={card}
+        open={createChildOpen}
+        onOpenChange={setCreateChildOpen}
+      />
+    </>
   );
 }
 
@@ -484,9 +575,10 @@ function RelativeTime({ date }: { date: string | undefined }) {
 }
 
 function DueDate({ date }: { date: string | null }) {
+  if (!date) return null;
   return (
     <div className="text-fg-muted shrink-0 text-[11px]">
-      {date ? new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}
+      {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
     </div>
   );
 }
