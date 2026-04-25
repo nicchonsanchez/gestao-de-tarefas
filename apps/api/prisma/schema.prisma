@@ -43,6 +43,15 @@ enum BoardVisibility {
   ORGANIZATION
 }
 
+enum CardOrdering {
+  MANUAL
+  TIME_IN_LIST
+  TIME_INTERACTION
+  ALPHABETICAL
+  COMPLETION_DATE
+  CREATION_DATE
+}
+
 enum Priority {
   LOW
   MEDIUM
@@ -217,6 +226,8 @@ model Board {
   icon           String?
   visibility     BoardVisibility @default(PRIVATE)
   isArchived     Boolean         @default(false)
+  cardOrdering   CardOrdering    @default(MANUAL)
+  inheritTeamOnNewCards Boolean  @default(false)
   createdById    String
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -285,6 +296,7 @@ model Card {
   parentCardId    String?
   createdById     String
   leadId          String?   // Líder do card: default = createdBy, pode trocar manualmente ou via automação
+  enteredListAt   DateTime  @default(now())
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

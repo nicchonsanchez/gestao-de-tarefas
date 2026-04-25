@@ -1,5 +1,13 @@
 import { api } from '@/lib/api-client';
 
+export type CardOrdering =
+  | 'MANUAL'
+  | 'TIME_IN_LIST'
+  | 'TIME_INTERACTION'
+  | 'ALPHABETICAL'
+  | 'COMPLETION_DATE'
+  | 'CREATION_DATE';
+
 export interface BoardListItem {
   id: string;
   name: string;
@@ -21,6 +29,10 @@ export interface CardListItem {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   dueDate: string | null;
   isArchived: boolean;
+  enteredListAt: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
   members: Array<{ user: { id: string; name: string; avatarUrl: string | null } }>;
   labels: Array<{ label: { id: string; name: string; color: string } }>;
   _count: { comments: number; attachments: number; checklists: number };
@@ -43,6 +55,10 @@ export interface BoardDetail {
   color: string | null;
   visibility: 'PRIVATE' | 'ORGANIZATION';
   isArchived: boolean;
+  cardOrdering: CardOrdering;
+  inheritTeamOnNewCards: boolean;
+  createdAt: string;
+  createdBy: { id: string; name: string; avatarUrl: string | null };
   completedCount: number;
   lists: ListWithCards[];
   labels: Array<{ id: string; name: string; color: string }>;
@@ -93,6 +109,8 @@ export function updateBoard(
     color?: string | null;
     icon?: string | null;
     visibility?: 'PRIVATE' | 'ORGANIZATION';
+    cardOrdering?: CardOrdering;
+    inheritTeamOnNewCards?: boolean;
   },
 ) {
   return api.patch(`/api/v1/boards/${boardId}`, input);
@@ -153,6 +171,36 @@ export function completeCard(cardId: string) {
 
 export function uncompleteCard(cardId: string, toListId?: string) {
   return api.post(`/api/v1/cards/${cardId}/uncomplete`, toListId ? { toListId } : {});
+}
+
+export function sortCardsForBoard(cards: CardListItem[], ordering: CardOrdering): CardListItem[] {
+  if (ordering === 'MANUAL') return cards;
+  const copy = [...cards];
+  switch (ordering) {
+    case 'TIME_IN_LIST':
+      copy.sort(
+        (a, b) => new Date(a.enteredListAt).getTime() - new Date(b.enteredListAt).getTime(),
+      );
+      break;
+    case 'TIME_INTERACTION':
+      copy.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      break;
+    case 'ALPHABETICAL':
+      copy.sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
+      break;
+    case 'COMPLETION_DATE':
+      copy.sort((a, b) => {
+        if (!a.completedAt && !b.completedAt) return 0;
+        if (!a.completedAt) return 1;
+        if (!b.completedAt) return -1;
+        return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+      });
+      break;
+    case 'CREATION_DATE':
+      copy.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      break;
+  }
+  return copy;
 }
 
 export function fetchCompletedCards(

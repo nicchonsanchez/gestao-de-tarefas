@@ -1,0 +1,12 @@
+-- CreateEnum
+CREATE TYPE "CardOrdering" AS ENUM ('MANUAL', 'TIME_IN_LIST', 'TIME_INTERACTION', 'ALPHABETICAL', 'COMPLETION_DATE', 'CREATION_DATE');
+
+-- DropIndex
+DROP INDEX "Card_leadId_idx";
+
+-- AlterTable
+ALTER TABLE "Board" ADD COLUMN     "cardOrdering" "CardOrdering" NOT NULL DEFAULT 'MANUAL',
+ADD COLUMN     "inheritTeamOnNewCards" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "Card" ADD COLUMN     "enteredListAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+export const CardOrderingSchema = z.enum([
+  'MANUAL',
+  'TIME_IN_LIST',
+  'TIME_INTERACTION',
+  'ALPHABETICAL',
+  'COMPLETION_DATE',
+  'CREATION_DATE',
+]);
+export type CardOrdering = z.infer<typeof CardOrderingSchema>;
+
 export const CreateBoardSchema = z.object({
   name: z.string().min(2).max(120).trim(),
   description: z.string().max(1000).optional().nullable(),
@@ -13,7 +23,10 @@ export const CreateBoardSchema = z.object({
 });
 export type CreateBoardRequest = z.infer<typeof CreateBoardSchema>;
 
-export const UpdateBoardSchema = CreateBoardSchema.partial();
+export const UpdateBoardSchema = CreateBoardSchema.partial().extend({
+  cardOrdering: CardOrderingSchema.optional(),
+  inheritTeamOnNewCards: z.boolean().optional(),
+});
 export type UpdateBoardRequest = z.infer<typeof UpdateBoardSchema>;
 
 export const AddBoardMemberSchema = z.object({

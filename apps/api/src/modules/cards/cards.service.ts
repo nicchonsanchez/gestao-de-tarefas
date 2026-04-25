@@ -55,20 +55,38 @@ export class CardsService {
     });
     const position = computeInsertPosition(last?.position ?? null, null);
 
-    const card = await this.prisma.card.create({
-      data: {
-        organizationId: tenant.organizationId,
-        boardId: list.boardId,
-        listId: input.listId,
-        title: input.title,
-        description: (input.description ?? undefined) as Prisma.InputJsonValue | undefined,
-        priority: input.priority ?? 'MEDIUM',
-        dueDate: input.dueDate ? new Date(input.dueDate) : null,
-        startDate: input.startDate ? new Date(input.startDate) : null,
-        position,
-        createdById: userId,
-        leadId: userId, // Default: quem cria vira líder. Pode ser trocado no modal ou via automação.
-      },
+    const board = await this.prisma.board.findUnique({
+      where: { id: list.boardId },
+      select: { inheritTeamOnNewCards: true, members: { select: { userId: true } } },
+    });
+
+    const card = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.card.create({
+        data: {
+          organizationId: tenant.organizationId,
+          boardId: list.boardId,
+          listId: input.listId,
+          title: input.title,
+          description: (input.description ?? undefined) as Prisma.InputJsonValue | undefined,
+          priority: input.priority ?? 'MEDIUM',
+          dueDate: input.dueDate ? new Date(input.dueDate) : null,
+          startDate: input.startDate ? new Date(input.startDate) : null,
+          position,
+          createdById: userId,
+          leadId: userId, // Default: quem cria vira líder. Pode ser trocado no modal ou via automação.
+        },
+      });
+
+      const memberIds = new Set<string>([userId]);
+      if (board?.inheritTeamOnNewCards) {
+        for (const m of board.members) memberIds.add(m.userId);
+      }
+      await tx.cardMember.createMany({
+        data: Array.from(memberIds).map((uid) => ({ cardId: created.id, userId: uid })),
+        skipDuplicates: true,
+      });
+
+      return created;
     });
 
     await this.prisma.activity.create({
@@ -244,9 +262,14 @@ export class CardsService {
     );
     const position = computeInsertPosition(beforePos, afterPos);
 
+    const listChanged = card.listId !== input.toListId;
     const updated = await this.prisma.card.update({
       where: { id: cardId },
-      data: { listId: input.toListId, position },
+      data: {
+        listId: input.toListId,
+        position,
+        ...(listChanged ? { enteredListAt: new Date() } : {}),
+      },
     });
 
     await this.prisma.activity.create({

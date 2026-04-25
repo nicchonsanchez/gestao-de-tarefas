@@ -32,6 +32,7 @@ import {
   completeCard,
   moveCard,
   moveList,
+  sortCardsForBoard,
   type BoardDetail,
   type CardListItem,
 } from '@/lib/queries/boards';
@@ -309,18 +310,21 @@ export default function BoardPage() {
               items={board.lists.map((l) => `${LIST_SORT_PREFIX}${l.id}`)}
               strategy={horizontalListSortingStrategy}
             >
-              {board.lists.map((list) => (
-                <ListColumn key={list.id} list={list}>
-                  <SortableContext
-                    items={list.cards.map((c) => c.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {list.cards.map((card) => (
-                      <CardItem key={card.id} card={card} />
-                    ))}
-                  </SortableContext>
-                </ListColumn>
-              ))}
+              {board.lists.map((list) => {
+                const sortedCards = sortCardsForBoard(list.cards, board.cardOrdering);
+                return (
+                  <ListColumn key={list.id} list={list}>
+                    <SortableContext
+                      items={sortedCards.map((c) => c.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {sortedCards.map((card) => (
+                        <CardItem key={card.id} card={card} />
+                      ))}
+                    </SortableContext>
+                  </ListColumn>
+                );
+              })}
             </SortableContext>
             <AddColumnButton boardId={boardId} />
             <CompletedColumn boardId={boardId} completedCount={board.completedCount ?? 0} />

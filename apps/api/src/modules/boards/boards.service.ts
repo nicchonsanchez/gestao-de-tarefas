@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Board, BoardRole, BoardVisibility, Prisma } from '@prisma/client';
+import type { Board, BoardRole, BoardVisibility, CardOrdering, Prisma } from '@prisma/client';
 import { ORG_ROLES_WITH_BOARD_BYPASS } from '@ktask/contracts';
 
 import { PrismaService } from '@/common/prisma/prisma.service';
@@ -21,6 +21,8 @@ interface UpdateBoardInput {
   color?: string | null;
   icon?: string | null;
   visibility?: BoardVisibility;
+  cardOrdering?: CardOrdering;
+  inheritTeamOnNewCards?: boolean;
 }
 
 @Injectable()
@@ -135,6 +137,7 @@ export class BoardsService {
       this.prisma.board.findUnique({
         where: { id: boardId },
         include: {
+          createdBy: { select: { id: true, name: true, avatarUrl: true } },
           lists: {
             where: { isArchived: false },
             orderBy: { position: 'asc' },
@@ -211,6 +214,8 @@ export class BoardsService {
         color: input.color,
         icon: input.icon,
         visibility: input.visibility,
+        cardOrdering: input.cardOrdering,
+        inheritTeamOnNewCards: input.inheritTeamOnNewCards,
       },
     });
 
