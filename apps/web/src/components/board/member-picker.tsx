@@ -122,7 +122,7 @@ export function MemberPicker({
           Adicionar contato
         </button>
         {open && (
-          <div className="border-border bg-bg absolute left-0 top-full z-30 mt-1 flex w-64 flex-col overflow-hidden rounded-md border shadow-lg">
+          <div className="border-border bg-bg absolute left-0 top-full z-30 mt-1 flex w-[min(16rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-md border shadow-lg">
             <div className="border-border/70 flex items-center gap-2 border-b px-2 py-1.5">
               <Search size={12} className="text-fg-muted" />
               <input

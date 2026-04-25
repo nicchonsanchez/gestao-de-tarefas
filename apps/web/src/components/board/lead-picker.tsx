@@ -89,7 +89,7 @@ export function LeadPicker({ card, boardId }: { card: CardDetail; boardId: strin
         )}
       </button>
       {open && (
-        <div className="border-border bg-bg absolute left-0 top-full z-30 mt-1 flex w-72 flex-col overflow-hidden rounded-md border shadow-lg">
+        <div className="border-border bg-bg absolute left-0 top-full z-30 mt-1 flex w-[min(18rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-md border shadow-lg">
           <div className="border-border/70 flex items-start justify-between gap-2 border-b px-3 py-2.5">
             <div className="flex items-start gap-2">
               <span className="bg-bg-muted text-fg-muted flex size-6 shrink-0 items-center justify-center rounded-full">

@@ -157,7 +157,7 @@ function DatePickerPopover({
   }
 
   return (
-    <div className="border-border bg-bg absolute right-0 top-full z-40 mt-1.5 flex w-72 flex-col rounded-md border p-3 shadow-lg">
+    <div className="border-border bg-bg absolute right-0 top-full z-40 mt-1.5 flex w-[min(18rem,calc(100vw-1rem))] flex-col rounded-md border p-3 shadow-lg">
       <p className="text-fg-muted mb-2 text-[11px] font-semibold">Data simples</p>
 
       {/* Atalhos */}

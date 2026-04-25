@@ -102,7 +102,7 @@ export function TeamPicker({
         <UsersRound size={13} />
       </button>
       {open && (
-        <div className="border-border bg-bg absolute left-0 top-full z-30 mt-1 flex w-80 flex-col overflow-hidden rounded-md border shadow-lg">
+        <div className="border-border bg-bg absolute left-0 top-full z-30 mt-1 flex w-[min(20rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-md border shadow-lg">
           <div className="border-border/70 flex items-start justify-between gap-2 border-b px-3 py-2.5">
             <div className="flex items-start gap-2">
               <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full">

@@ -73,7 +73,7 @@ export function CardModal({ boardId }: { boardId: string }) {
     <Dialog open={Boolean(cardId)} onOpenChange={(open) => !open && close()}>
       <DialogContent
         hideClose
-        className="h-[calc(100vh-4rem)] max-h-[960px] w-[calc(100vw-4rem)] max-w-[1200px] gap-0 overflow-hidden p-0"
+        className="h-[100dvh] max-h-[100dvh] w-screen max-w-[100vw] gap-0 overflow-hidden rounded-none p-0 sm:h-[calc(100vh-4rem)] sm:max-h-[960px] sm:w-[calc(100vw-4rem)] sm:max-w-[1200px] sm:rounded-md"
       >
         {query.isLoading && (
           <div className="flex h-full items-center justify-center">
@@ -160,7 +160,7 @@ function CardModalContent({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-border flex items-start justify-between gap-4 border-b px-6 py-4">
+      <header className="border-border flex flex-wrap items-start justify-between gap-2 border-b px-4 py-3 sm:gap-4 sm:px-6 sm:py-4">
         <div className="min-w-0 flex-1">
           <input
             value={title}
@@ -172,15 +172,17 @@ function CardModalContent({
             onKeyDown={(e) => {
               if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             }}
-            className="w-full bg-transparent text-lg font-semibold tracking-tight focus:outline-none"
+            className="w-full bg-transparent text-base font-semibold tracking-tight focus:outline-none sm:text-lg"
           />
           <p className="text-fg-muted mt-0.5 text-xs">
             Em <span className="text-fg">{card.list.name}</span>
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <DueDatePicker value={card.dueDate} onChange={(iso) => dueDateMut.mutate(iso)} />
-          <StatusBadge isCompleted={isCompleted} />
+          <span className="hidden sm:inline-flex">
+            <StatusBadge isCompleted={isCompleted} />
+          </span>
           <CardMenu
             cardId={card.id}
             boardId={boardId}

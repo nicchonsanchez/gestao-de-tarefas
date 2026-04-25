@@ -31,8 +31,8 @@ export function Topbar() {
 
   return (
     <header className="border-border bg-bg sticky top-0 z-30 border-b">
-      <div className="container flex h-[52px] items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-5">
+      <div className="container flex h-[52px] items-center justify-between gap-2 sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-5">
           <Link
             href="/"
             className="group flex shrink-0 items-center transition-opacity hover:opacity-85"
@@ -56,8 +56,8 @@ export function Topbar() {
               className="hidden shrink-0 dark:block"
             />
           </Link>
-          <div className="bg-border/70 h-5 w-px shrink-0" aria-hidden />
-          <nav className="flex h-[52px] items-stretch">
+          <div className="bg-border/70 hidden h-5 w-px shrink-0 sm:block" aria-hidden />
+          <nav className="hidden h-[52px] items-stretch sm:flex">
             {NAV.map((item) => {
               const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
               return (
@@ -82,15 +82,38 @@ export function Topbar() {
           </nav>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           <SearchTrigger />
           {user && <TimerWidget />}
           <NotificationsBell />
           <ThemeToggle />
-          <div className="bg-border/70 mx-1 h-5 w-px" aria-hidden />
+          <div className="bg-border/70 mx-0.5 hidden h-5 w-px sm:mx-1 sm:block" aria-hidden />
           {user && <UserMenu onLogout={handleLogout} />}
         </div>
       </div>
+      {/* Nav mobile (abaixo do header) */}
+      <nav className="border-border/60 -mb-px flex items-stretch border-t sm:hidden">
+        {NAV.map((item) => {
+          const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`group relative flex flex-1 items-center justify-center py-2 text-xs transition-colors ${
+                active ? 'text-primary' : 'text-fg-muted hover:text-fg'
+              }`}
+            >
+              {item.label}
+              <span
+                aria-hidden
+                className={`absolute inset-x-3 bottom-0 h-[2px] rounded-t transition-colors ${
+                  active ? 'bg-primary' : 'bg-transparent'
+                }`}
+              />
+            </Link>
+          );
+        })}
+      </nav>
     </header>
   );
 }

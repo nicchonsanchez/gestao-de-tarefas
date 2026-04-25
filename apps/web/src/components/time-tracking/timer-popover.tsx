@@ -77,7 +77,7 @@ export function TimerPopover({
       <div
         role="dialog"
         aria-label="Detalhes do cronômetro"
-        className="border-border bg-bg absolute right-0 top-full z-40 mt-2 flex w-[360px] flex-col gap-3 rounded-md border p-4 shadow-lg"
+        className="border-border bg-bg absolute right-0 top-full z-40 mt-2 flex w-[min(360px,calc(100vw-1rem))] flex-col gap-3 rounded-md border p-4 shadow-lg"
       >
         <div className="flex items-start justify-between gap-2">
           <div>

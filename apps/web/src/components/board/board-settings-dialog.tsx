@@ -108,7 +108,7 @@ export function BoardSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[calc(100vh-4rem)] max-h-[860px] w-[calc(100vw-4rem)] max-w-[1100px] gap-0 overflow-hidden p-0">
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-[100vw] gap-0 overflow-hidden rounded-none p-0 sm:h-[calc(100vh-4rem)] sm:max-h-[860px] sm:w-[calc(100vw-4rem)] sm:max-w-[1100px] sm:rounded-md">
         <div className="border-border flex items-center justify-between border-b px-6 py-3">
           <DialogTitle className="text-base">Configurações do fluxo</DialogTitle>
         </div>
