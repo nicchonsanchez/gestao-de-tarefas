@@ -62,3 +62,8 @@ miniodata/
 
 # Imagens temporárias
 ChatGPT Image*.png
+
+# Imagens soltas na raiz (referência/temporárias)
+/*.png
+/*.jpg
+/*.jpeg
