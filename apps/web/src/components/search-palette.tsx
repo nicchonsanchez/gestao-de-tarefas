@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { CheckCircle2, FileText, Layout, Loader2, Search, User as UserIcon, X } from 'lucide-react';
+import { CheckCircle2, FileText, Layout, Loader2, Search } from 'lucide-react';
 
 import { searchGlobal, type SearchResult } from '@/lib/queries/search';
 import { UserAvatar } from '@/components/user-avatar';
