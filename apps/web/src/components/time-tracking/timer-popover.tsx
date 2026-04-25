@@ -50,13 +50,15 @@ export function TimerPopover({
     },
   });
 
-  // Debounce salvamento da nota
+  // Debounce salvamento da nota.
+  // Deps: o efeito depende apenas de `note`. As outras refs (active.note,
+  // noteMut) sao estaveis o suficiente; incluir noteMut causa re-trigger
+  // espurio. Mantemos a lista enxuta intencionalmente.
   useEffect(() => {
     if ((note ?? '') === (active.note ?? '')) return;
     const id = setTimeout(() => noteMut.mutate(note), 500);
     return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note]);
+  }, [note, active.note, noteMut]);
 
   function goToTimesheet() {
     if (!me) return;
