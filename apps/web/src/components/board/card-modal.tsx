@@ -30,7 +30,7 @@ import {
   updateCard,
   type CardDetail,
 } from '@/lib/queries/cards';
-import { proseToPlainText } from '@/lib/prose';
+import { RichEditor } from '@/components/editor';
 import { UserAvatar } from '@/components/user-avatar';
 import { TimelineFeed } from './timeline-feed';
 import { LeadPicker } from './lead-picker';
@@ -117,11 +117,8 @@ function CardModalContent({
     onSuccess: invalidate,
   });
 
-  const [description, setDescription] = useState(proseToPlainText(card.description));
-  useEffect(() => setDescription(proseToPlainText(card.description)), [card.description]);
-
   const descMut = useMutation({
-    mutationFn: (plain: string) => updateCard(card.id, { description: plainTextToDoc(plain) }),
+    mutationFn: (doc: unknown) => updateCard(card.id, { description: doc }),
     onSuccess: invalidate,
   });
 
@@ -239,12 +236,11 @@ function CardModalContent({
 
               {/* Descrição */}
               <Block icon={<DescriptionIcon />} label="Descrição">
-                <DescriptionEditor
-                  value={description}
-                  onSave={(next) => {
-                    setDescription(next);
-                    descMut.mutate(next);
-                  }}
+                <RichEditor
+                  value={card.description}
+                  onChange={(doc) => descMut.mutate(doc)}
+                  placeholder="Escrever detalhes do card..."
+                  isSaving={descMut.isPending}
                 />
               </Block>
 
@@ -416,51 +412,6 @@ function ChecklistIcon() {
       <polyline points="9 11 12 14 22 4" />
       <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
-  );
-}
-
-function DescriptionEditor({ value, onSave }: { value: string; onSave: (v: string) => void }) {
-  const [local, setLocal] = useState(value);
-  useEffect(() => setLocal(value), [value]);
-  const [dirty, setDirty] = useState(false);
-
-  return (
-    <div className="flex flex-col gap-2">
-      <textarea
-        rows={5}
-        value={local}
-        onChange={(e) => {
-          setLocal(e.target.value);
-          setDirty(e.target.value !== value);
-        }}
-        placeholder="Escrever detalhes do card..."
-        className="bg-bg border-border focus-visible:ring-primary w-full resize-y rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
-      />
-      {dirty && (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onSave(local);
-              setDirty(false);
-            }}
-            className="bg-primary text-primary-fg hover:bg-primary-hover rounded-md px-3 py-1.5 text-xs font-medium"
-          >
-            Salvar
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setLocal(value);
-              setDirty(false);
-            }}
-            className="text-fg-muted hover:text-fg text-xs"
-          >
-            Descartar
-          </button>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -680,12 +631,4 @@ function RemovableTeamAvatar({
       </button>
     </span>
   );
-}
-
-function plainTextToDoc(text: string): unknown {
-  const paragraphs = text.split(/\n{2,}/).map((p) => ({
-    type: 'paragraph',
-    content: p.length > 0 ? [{ type: 'text', text: p }] : [],
-  }));
-  return { type: 'doc', content: paragraphs };
 }
