@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -54,16 +55,34 @@ export class AttachmentsService {
     userId: string,
     tenant: TenantContext,
     cardId: string,
-    input: { fileName: string; mimeType: string; sizeBytes: number; storageKey: string },
+    input: {
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      storageKey: string;
+      commentId?: string | null;
+    },
   ) {
     const card = await this.getCardOrThrow(cardId, tenant.organizationId);
     await this.access.assertAccess(userId, card.boardId, tenant, 'EDITOR');
+
+    // Se commentId vier, valida que o comment pertence ao card e está visível.
+    if (input.commentId) {
+      const comment = await this.prisma.comment.findUnique({
+        where: { id: input.commentId },
+        select: { cardId: true, deletedAt: true },
+      });
+      if (!comment || comment.cardId !== cardId || comment.deletedAt) {
+        throw new BadRequestException('Comentário inválido para este card.');
+      }
+    }
 
     const kind = input.mimeType.startsWith('image/') ? 'IMAGE' : 'FILE';
 
     const attachment = await this.prisma.attachment.create({
       data: {
         cardId,
+        commentId: input.commentId ?? null,
         uploaderId: userId,
         fileName: input.fileName,
         mimeType: input.mimeType,
@@ -82,7 +101,11 @@ export class AttachmentsService {
         cardId,
         actorId: userId,
         type: 'ATTACHMENT_ADDED',
-        payload: { attachmentId: attachment.id, fileName: attachment.fileName },
+        payload: {
+          attachmentId: attachment.id,
+          fileName: attachment.fileName,
+          commentId: attachment.commentId,
+        },
       },
     });
 
@@ -99,12 +122,26 @@ export class AttachmentsService {
   async remove(userId: string, tenant: TenantContext, attachmentId: string) {
     const attachment = await this.prisma.attachment.findUnique({
       where: { id: attachmentId },
-      include: { card: true },
+      include: {
+        card: true,
+        comment: { select: { authorId: true } },
+      },
     });
     if (!attachment || attachment.card.organizationId !== tenant.organizationId) {
       throw new NotFoundException('Anexo não encontrado.');
     }
-    await this.access.assertAccess(userId, attachment.card.boardId, tenant, 'EDITOR');
+
+    // Anexo de comment: dono do comment OU OWNER/ADMIN da Org.
+    if (attachment.commentId && attachment.comment) {
+      const isOwner = attachment.comment.authorId === userId;
+      const isOrgAdmin = tenant.role === 'OWNER' || tenant.role === 'ADMIN';
+      if (!isOwner && !isOrgAdmin) {
+        throw new ForbiddenException('Apenas o autor do comentário ou OWNER/ADMIN pode remover.');
+      }
+    } else {
+      // Anexo direto do card: requer EDITOR no board.
+      await this.access.assertAccess(userId, attachment.card.boardId, tenant, 'EDITOR');
+    }
 
     await this.prisma.attachment.delete({ where: { id: attachmentId } });
 
@@ -130,6 +167,49 @@ export class AttachmentsService {
     // por ora, depois colocamos job de GC pra remover órfãos)
 
     return { ok: true };
+  }
+
+  /**
+   * Presign upload pra anexo de COMMENT (timeline).
+   * Resolve o card a partir do comment e reusa a mesma lógica de checagem.
+   */
+  async presignUploadForComment(
+    userId: string,
+    tenant: TenantContext,
+    commentId: string,
+    input: { fileName: string; contentType: string; sizeBytes: number },
+  ) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { card: true },
+    });
+    if (!comment || comment.card.organizationId !== tenant.organizationId) {
+      throw new NotFoundException('Comentário não encontrado.');
+    }
+    return this.presignUpload(userId, tenant, comment.cardId, input);
+  }
+
+  /**
+   * Cria anexo vinculado a um comment. O cardId é resolvido a partir do
+   * comment (não vem do client) pra evitar inconsistência.
+   */
+  async createForComment(
+    userId: string,
+    tenant: TenantContext,
+    commentId: string,
+    input: { fileName: string; mimeType: string; sizeBytes: number; storageKey: string },
+  ) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { card: true },
+    });
+    if (!comment || comment.card.organizationId !== tenant.organizationId) {
+      throw new NotFoundException('Comentário não encontrado.');
+    }
+    if (comment.deletedAt) {
+      throw new BadRequestException('Não é possível anexar a um comentário removido.');
+    }
+    return this.create(userId, tenant, comment.cardId, { ...input, commentId });
   }
 
   private async getCardOrThrow(cardId: string, organizationId: string) {

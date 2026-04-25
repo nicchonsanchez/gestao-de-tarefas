@@ -54,6 +54,28 @@ export class AttachmentsController {
     return this.service.create(user.userId, org, cardId, body);
   }
 
+  @Post('comments/:commentId/attachments/presign')
+  @ApiOperation({ summary: 'Presign upload de anexo da timeline (comment)' })
+  presignForComment(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('commentId') commentId: string,
+    @Body(new ZodValidationPipe(PresignAttachmentSchema)) body: PresignAttachmentRequest,
+  ) {
+    return this.service.presignUploadForComment(user.userId, org, commentId, body);
+  }
+
+  @Post('comments/:commentId/attachments')
+  @ApiOperation({ summary: 'Registra anexo da timeline (vinculado a um comment)' })
+  createForComment(
+    @CurrentUser() user: AuthenticatedRequestContext,
+    @CurrentOrg() org: TenantContext,
+    @Param('commentId') commentId: string,
+    @Body(new ZodValidationPipe(CreateAttachmentSchema)) body: CreateAttachmentRequest,
+  ) {
+    return this.service.createForComment(user.userId, org, commentId, body);
+  }
+
   @Delete('attachments/:attachmentId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remover anexo' })

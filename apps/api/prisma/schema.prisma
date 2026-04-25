@@ -409,6 +409,7 @@ model ChecklistItem {
 model Attachment {
   id          String         @id @default(cuid())
   cardId      String
+  commentId   String?        // se setado, o anexo pertence a um comment (timeline). Null = anexo direto do card.
   uploaderId  String
   fileName    String
   mimeType    String
@@ -418,10 +419,12 @@ model Attachment {
   externalUrl String?
   createdAt   DateTime       @default(now())
 
-  card     Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  uploader User @relation(fields: [uploaderId], references: [id])
+  card     Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  comment  Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  uploader User     @relation(fields: [uploaderId], references: [id])
 
   @@index([cardId])
+  @@index([commentId])
 }
 
 // ==================== Comments ====================
@@ -436,8 +439,9 @@ model Comment {
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  card   Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  author User @relation(fields: [authorId], references: [id])
+  card        Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorId], references: [id])
+  attachments Attachment[]
 
   @@index([cardId, createdAt])
 }

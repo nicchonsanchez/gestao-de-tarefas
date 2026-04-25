@@ -129,12 +129,20 @@ export class CardsService {
           orderBy: { position: 'asc' },
         },
         attachments: {
+          where: { commentId: null }, // só anexos diretos do card; os de comments ficam embutidos no comment
           orderBy: { createdAt: 'desc' },
           include: { uploader: { select: { id: true, name: true, avatarUrl: true } } },
         },
         comments: {
+          where: { deletedAt: null },
           orderBy: { createdAt: 'asc' },
-          include: { author: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            author: { select: { id: true, name: true, email: true, avatarUrl: true } },
+            attachments: {
+              orderBy: { createdAt: 'asc' },
+              include: { uploader: { select: { id: true, name: true, avatarUrl: true } } },
+            },
+          },
         },
         activities: {
           orderBy: { createdAt: 'desc' },
@@ -145,12 +153,18 @@ export class CardsService {
       },
     });
     if (!result) return null;
-    // Hidrata publicUrl dos anexos a partir do storageKey
-    const attachments = result.attachments.map((a) => ({
+    const enabled = this.storage.isEnabled();
+    const hydrate = <T extends { storageKey: string }>(a: T) => ({
       ...a,
-      publicUrl: this.storage.isEnabled() ? this.storage.publicUrlFor(a.storageKey) : null,
+      publicUrl: enabled ? this.storage.publicUrlFor(a.storageKey) : null,
+    });
+    // Hidrata publicUrl dos anexos diretos do card e dos anexos de cada comment
+    const attachments = result.attachments.map(hydrate);
+    const comments = result.comments.map((c) => ({
+      ...c,
+      attachments: c.attachments.map(hydrate),
     }));
-    return { ...result, attachments };
+    return { ...result, attachments, comments };
   }
 
   async update(userId: string, tenant: TenantContext, cardId: string, input: UpdateCardInput) {
