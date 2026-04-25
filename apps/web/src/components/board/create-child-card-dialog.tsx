@@ -64,12 +64,21 @@ const TOGGLES: Array<{ key: ToggleKey; label: string; available: boolean; reason
 
 const AVAILABLE_KEYS: ToggleKey[] = TOGGLES.filter((t) => t.available).map((t) => t.key);
 
+/**
+ * `parent` aceita tanto um CardDetail completo (uso típico no card-modal)
+ * quanto uma versão mínima (FamilyCard da aba Família, busca global, etc).
+ * Os únicos campos efetivamente lidos: id, title, boardId, description.
+ */
+export type CreateChildCardParent = Pick<CardDetail, 'id' | 'title' | 'boardId'> & {
+  description?: unknown | null;
+};
+
 export function CreateChildCardDialog({
   parent,
   open,
   onOpenChange,
 }: {
-  parent: CardDetail;
+  parent: CreateChildCardParent;
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {

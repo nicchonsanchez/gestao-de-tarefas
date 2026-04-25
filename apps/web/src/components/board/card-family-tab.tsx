@@ -3,11 +3,22 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { GitBranch, Loader2, MapPin, MoreHorizontal, Plus, Unlink } from 'lucide-react';
+import {
+  Copy,
+  ExternalLink,
+  GitBranch,
+  Link as LinkIcon,
+  Loader2,
+  MapPin,
+  MoreHorizontal,
+  Plus,
+  Unlink,
+} from 'lucide-react';
 
 import {
   cardFamilyQuery,
   cardsQueries,
+  duplicateCard,
   setCardParent,
   type CardDetail,
   type FamilyCard,
@@ -177,22 +188,28 @@ function FamilyRow({
   const routeParams = useParams<{ boardId: string }>();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [createChildOpen, setCreateChildOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const lists = useQuery({ ...boardsQueries.detail(family.boardId) }).data?.lists ?? [];
   const currentIdx = lists.findIndex((l) => l.id === family.listId);
   const isCompleted = Boolean(family.completedAt);
 
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: cardFamilyQuery(cardId).queryKey });
+    queryClient.invalidateQueries({ queryKey: cardsQueries.detail(cardId).queryKey });
+    queryClient.invalidateQueries({ queryKey: ['boards'] });
+  }
+
   const unlinkMut = useMutation({
     mutationFn: () =>
-      role === 'parent'
-        ? // desvincula o card atual do seu pai
-          setCardParent(cardId, null)
-        : // desvincula este descendant/sibling do seu pai (família.id)
-          setCardParent(family.id, null),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cardFamilyQuery(cardId).queryKey });
-      queryClient.invalidateQueries({ queryKey: cardsQueries.detail(cardId).queryKey });
-    },
+      role === 'parent' ? setCardParent(cardId, null) : setCardParent(family.id, null),
+    onSuccess: invalidate,
+  });
+
+  const duplicateMut = useMutation({
+    mutationFn: () => duplicateCard(family.id, { count: 1 }),
+    onSuccess: invalidate,
   });
 
   function open() {
@@ -205,74 +222,193 @@ function FamilyRow({
     }
   }
 
+  function cardUrl() {
+    return `${window.location.origin}/b/${family.boardId}?card=${family.id}`;
+  }
+
+  function copyUrl() {
+    navigator.clipboard
+      .writeText(cardUrl())
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {});
+  }
+
+  function openInNewTab() {
+    window.open(cardUrl(), '_blank', 'noopener');
+  }
+
+  // Click na row inteira abre o card. Botões dentro (menu, avatares clicáveis)
+  // usam stopPropagation pra não disparar isso.
+  function onRowClick(e: React.MouseEvent) {
+    if ((e.target as HTMLElement).closest('[data-row-action]')) return;
+    open();
+  }
+
   return (
-    <div style={{ paddingLeft: indent * INDENT_PX }} className="w-full">
-      <div className="border-border hover:border-border-strong hover:bg-bg-subtle flex w-full items-center gap-4 rounded-md border p-3 transition-colors">
-        <button type="button" onClick={open} className="min-w-0 flex-1 cursor-pointer text-left">
-          <p className="truncate text-sm font-medium">{family.title}</p>
-          <p className="text-fg-muted mt-1 text-[11px]">{family.board.name}</p>
-          <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
-        </button>
-        <Avatars members={family.members} />
-        <RelativeTime date={family.updatedAt} />
-        <DueDate date={family.dueDate} />
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            className="text-fg-muted hover:bg-bg-muted hover:text-fg rounded p-1"
-            aria-label="Mais ações"
-          >
-            <MoreHorizontal size={14} />
-          </button>
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="border-border bg-bg absolute right-0 top-full z-20 mt-1 flex w-52 flex-col rounded-md border p-1 text-xs shadow-lg">
-                <button
-                  type="button"
-                  onClick={() => {
+    <>
+      <div style={{ paddingLeft: indent * INDENT_PX }} className="w-full">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onRowClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              open();
+            }
+          }}
+          className="border-border hover:border-border-strong hover:bg-bg-subtle focus-visible:ring-primary flex w-full cursor-pointer items-center gap-4 rounded-md border p-3 transition-colors focus:outline-none focus-visible:ring-2"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{family.title}</p>
+            <p className="text-fg-muted mt-1 text-[11px]">{family.board.name}</p>
+            <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
+          </div>
+          <Avatars members={family.members} />
+          <RelativeTime date={family.updatedAt} />
+          <DueDate date={family.dueDate} />
+          <div data-row-action className="relative shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((v) => !v);
+              }}
+              className="text-fg-muted hover:bg-bg-muted hover:text-fg rounded p-1"
+              aria-label="Mais ações"
+            >
+              <MoreHorizontal size={14} />
+            </button>
+            {menuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setMenuOpen(false);
-                    open();
                   }}
-                  className="hover:bg-bg-muted flex items-center gap-2 rounded-sm px-2 py-1.5 text-left"
+                />
+                <div
+                  className="border-border bg-bg absolute right-0 top-full z-20 mt-1 flex w-56 flex-col rounded-md border p-1 text-xs shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <GitBranch size={13} />
-                  Visualizar card
-                </button>
-                <div className="border-border/70 my-1 border-t" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    if (
-                      confirm(
-                        role === 'parent'
-                          ? 'Desvincular este card do pai?'
-                          : role === 'sibling'
-                            ? 'Desvincular este irmão do pai? Vira card independente.'
-                            : 'Desvincular este descendente? Vira card independente.',
-                      )
-                    ) {
-                      unlinkMut.mutate();
+                  <MenuItem
+                    icon={<Copy size={13} />}
+                    label="Duplicar card"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      duplicateMut.mutate();
+                    }}
+                    disabled={duplicateMut.isPending}
+                  />
+                  <MenuItem
+                    icon={<Plus size={13} />}
+                    label="Criar card filho"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setCreateChildOpen(true);
+                    }}
+                  />
+                  <MenuItem
+                    icon={<GitBranch size={13} />}
+                    label="Tornar card filho de..."
+                    disabled
+                    hint="em breve"
+                  />
+                  <div className="border-border/70 my-1 border-t" />
+                  <MenuItem
+                    icon={<LinkIcon size={13} />}
+                    label={copied ? 'URL copiada' : 'Copiar URL do card'}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      copyUrl();
+                    }}
+                  />
+                  <MenuItem
+                    icon={<ExternalLink size={13} />}
+                    label="Abrir card em nova aba"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openInNewTab();
+                    }}
+                  />
+                  <div className="border-border/70 my-1 border-t" />
+                  <MenuItem
+                    icon={<Unlink size={13} />}
+                    label={
+                      role === 'parent'
+                        ? 'Desvincular do pai'
+                        : role === 'sibling'
+                          ? 'Desvincular do pai comum'
+                          : 'Desvincular do card'
                     }
-                  }}
-                  disabled={unlinkMut.isPending}
-                  className="text-danger hover:bg-danger-subtle flex items-center gap-2 rounded-sm px-2 py-1.5 text-left disabled:opacity-50"
-                >
-                  <Unlink size={13} />
-                  {role === 'parent'
-                    ? 'Desvincular do pai'
-                    : role === 'sibling'
-                      ? 'Desvincular do pai comum'
-                      : 'Desvincular do card'}
-                </button>
-              </div>
-            </>
-          )}
+                    danger
+                    disabled={unlinkMut.isPending}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      if (
+                        confirm(
+                          role === 'parent'
+                            ? 'Desvincular este card do pai?'
+                            : role === 'sibling'
+                              ? 'Desvincular este irmão do pai? Vira card independente.'
+                              : 'Desvincular este descendente? Vira card independente.',
+                        )
+                      ) {
+                        unlinkMut.mutate();
+                      }
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      <CreateChildCardDialog
+        parent={family}
+        open={createChildOpen}
+        onOpenChange={setCreateChildOpen}
+      />
+    </>
+  );
+}
+
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  disabled,
+  danger,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+  hint?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex items-center gap-2 rounded-sm px-2 py-1.5 text-left transition-colors ${
+        disabled
+          ? 'text-fg-subtle cursor-not-allowed'
+          : danger
+            ? 'text-danger hover:bg-danger-subtle'
+            : 'text-fg hover:bg-bg-muted'
+      }`}
+    >
+      {icon}
+      <span className="flex-1">{label}</span>
+      {hint && <span className="text-fg-subtle text-[10px]">{hint}</span>}
+    </button>
   );
 }
 
