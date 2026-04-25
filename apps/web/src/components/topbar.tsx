@@ -37,12 +37,12 @@ export function Topbar() {
             aria-label="Ir para o início"
           >
             <Image
-              src="/kharis-icon.png"
-              alt="Kharis"
+              src="/brand/app-icon-192.png"
+              alt="KTask"
               width={28}
               height={28}
               priority
-              className="shrink-0"
+              className="shrink-0 rounded-md"
             />
             <span className="text-[15px] font-semibold tracking-tight">KTask</span>
           </Link>
