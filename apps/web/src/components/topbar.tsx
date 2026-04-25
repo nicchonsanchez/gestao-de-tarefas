@@ -34,18 +34,26 @@ export function Topbar() {
         <div className="flex min-w-0 items-center gap-5">
           <Link
             href="/"
-            className="group flex shrink-0 items-center gap-2 transition-opacity hover:opacity-85"
+            className="group flex shrink-0 items-center transition-opacity hover:opacity-85"
             aria-label="Ir para o início"
           >
             <Image
-              src="/brand/app-icon-192.png"
+              src="/brand/lockup-wordmark-dark.png"
               alt="KTask"
-              width={28}
-              height={28}
+              width={88}
+              height={25}
               priority
-              className="shrink-0 rounded-md"
+              className="block shrink-0 dark:hidden"
             />
-            <span className="text-[15px] font-semibold tracking-tight">KTask</span>
+            <Image
+              src="/brand/lockup-wordmark.png"
+              alt=""
+              width={88}
+              height={25}
+              priority
+              aria-hidden
+              className="hidden shrink-0 dark:block"
+            />
           </Link>
           <div className="bg-border/70 h-5 w-px shrink-0" aria-hidden />
           <nav className="flex h-[52px] items-stretch">
