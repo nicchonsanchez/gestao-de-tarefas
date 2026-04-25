@@ -61,6 +61,7 @@ export class AttachmentsService {
       sizeBytes: number;
       storageKey: string;
       commentId?: string | null;
+      embedded?: boolean;
     },
   ) {
     const card = await this.getCardOrThrow(cardId, tenant.organizationId);
@@ -89,6 +90,7 @@ export class AttachmentsService {
         sizeBytes: input.sizeBytes,
         storageKey: input.storageKey,
         kind,
+        embedded: input.embedded ?? false,
       },
       include: { uploader: { select: { id: true, name: true, avatarUrl: true } } },
     });
@@ -197,7 +199,13 @@ export class AttachmentsService {
     userId: string,
     tenant: TenantContext,
     commentId: string,
-    input: { fileName: string; mimeType: string; sizeBytes: number; storageKey: string },
+    input: {
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      storageKey: string;
+      embedded?: boolean;
+    },
   ) {
     const comment = await this.prisma.comment.findUnique({
       where: { id: commentId },

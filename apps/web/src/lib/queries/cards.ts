@@ -269,7 +269,13 @@ export function presignAttachment(
 
 export function createAttachment(
   cardId: string,
-  input: { fileName: string; mimeType: string; sizeBytes: number; storageKey: string },
+  input: {
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    storageKey: string;
+    embedded?: boolean;
+  },
 ) {
   return api.post<Attachment>(`/api/v1/cards/${cardId}/attachments`, input);
 }
@@ -281,8 +287,15 @@ export function removeAttachment(attachmentId: string) {
 /**
  * Upload completo: presign → PUT direto no storage → create registro.
  * Devolve o Attachment criado (com publicUrl).
+ *
+ * Quando `embedded=true`, o anexo nao aparece na lista visivel do card —
+ * usado pra imagens inseridas diretamente no editor rich (descricao/comments).
  */
-export async function uploadAttachment(cardId: string, file: File): Promise<Attachment> {
+export async function uploadAttachment(
+  cardId: string,
+  file: File,
+  options?: { embedded?: boolean },
+): Promise<Attachment> {
   const presign = await presignAttachment(cardId, {
     fileName: file.name,
     contentType: file.type || 'application/octet-stream',
@@ -312,6 +325,7 @@ export async function uploadAttachment(cardId: string, file: File): Promise<Atta
     mimeType: file.type || 'application/octet-stream',
     sizeBytes: file.size,
     storageKey: presign.key,
+    embedded: options?.embedded ?? false,
   });
 }
 

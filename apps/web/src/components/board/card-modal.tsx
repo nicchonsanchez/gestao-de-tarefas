@@ -28,6 +28,7 @@ import {
   deleteCardPermanent,
   unassignMember,
   updateCard,
+  uploadAttachment,
   type CardDetail,
 } from '@/lib/queries/cards';
 import { RichEditor } from '@/components/editor';
@@ -241,6 +242,13 @@ function CardModalContent({
                   onChange={(doc) => descMut.mutate(doc)}
                   placeholder="Escrever detalhes do card..."
                   isSaving={descMut.isPending}
+                  onUploadImage={async (file) => {
+                    const att = await uploadAttachment(card.id, file, { embedded: true });
+                    if (!att.publicUrl) {
+                      throw new Error('Imagem enviada, mas a URL pública não está disponível.');
+                    }
+                    return { src: att.publicUrl, alt: att.fileName };
+                  }}
                 />
               </Block>
 

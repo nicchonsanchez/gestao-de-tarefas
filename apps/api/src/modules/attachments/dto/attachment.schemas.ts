@@ -15,5 +15,11 @@ export const CreateAttachmentSchema = z.object({
   mimeType: z.string().min(1).max(120),
   sizeBytes: z.number().int().positive().max(MAX_ATTACHMENT_SIZE),
   storageKey: z.string().min(1),
+  /**
+   * true = imagem inserida no editor rich (descricao/comment).
+   * Anexos embedded NAO aparecem na lista visivel "Anexos" do card,
+   * mas continuam contando pra storage e activity log.
+   */
+  embedded: z.boolean().optional().default(false),
 });
 export type CreateAttachmentRequest = z.infer<typeof CreateAttachmentSchema>;

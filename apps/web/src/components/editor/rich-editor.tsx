@@ -5,7 +5,8 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import Image from '@tiptap/extension-image';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bold,
   Italic,
@@ -18,6 +19,7 @@ import {
   Heading2,
   Heading3,
   Link as LinkIcon,
+  Image as ImageIcon,
   Undo2,
   Redo2,
 } from 'lucide-react';
@@ -44,6 +46,11 @@ function normalizeIncoming(value: unknown): ProseDoc {
   return EMPTY_DOC;
 }
 
+export interface UploadedImage {
+  src: string;
+  alt?: string;
+}
+
 export interface RichEditorProps {
   value: unknown;
   onChange: (next: ProseDoc) => void;
@@ -57,6 +64,11 @@ export interface RichEditorProps {
   /** Altura mínima do editor. Default: 8rem. */
   minHeight?: string;
   className?: string;
+  /**
+   * Se fornecida, ativa upload de imagens: botão "Imagem" na toolbar,
+   * drag-drop e paste do clipboard fazem upload + insertImage.
+   */
+  onUploadImage?: (file: File) => Promise<UploadedImage>;
 }
 
 export function RichEditor({
@@ -68,10 +80,18 @@ export function RichEditor({
   readOnly = false,
   minHeight = '8rem',
   className,
+  onUploadImage,
 }: RichEditorProps) {
   const initialDoc = normalizeIncoming(value);
   const lastEmittedRef = useRef<string>(JSON.stringify(initialDoc));
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editorRef = useRef<Editor | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const onUploadImageRef = useRef<typeof onUploadImage>(onUploadImage);
+  useEffect(() => {
+    onUploadImageRef.current = onUploadImage;
+  }, [onUploadImage]);
 
   const emitChange = useCallback(
     (editor: Editor) => {
@@ -84,8 +104,30 @@ export function RichEditor({
     [onChange],
   );
 
-  const editor = useEditor({
-    extensions: [
+  /** Faz upload e insere uma imagem no editor. Retorna true se inseriu. */
+  const uploadAndInsertImage = useCallback(async (file: File, position?: number) => {
+    const editor = editorRef.current;
+    const uploader = onUploadImageRef.current;
+    if (!editor || !uploader) return false;
+    if (!file.type.startsWith('image/')) return false;
+    try {
+      setUploadingImage(true);
+      setUploadError(null);
+      const { src, alt } = await uploader(file);
+      const chain = editor.chain().focus();
+      if (typeof position === 'number') chain.setTextSelection(position);
+      chain.setImage({ src, alt: alt ?? file.name }).run();
+      return true;
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Falha ao enviar a imagem.');
+      return false;
+    } finally {
+      setUploadingImage(false);
+    }
+  }, []);
+
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
@@ -100,15 +142,57 @@ export function RichEditor({
         },
       }),
       Placeholder.configure({ placeholder }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        HTMLAttributes: {
+          class: 'max-w-full rounded-md border border-border my-2',
+        },
+      }),
     ],
+    [placeholder],
+  );
+
+  const editor = useEditor({
+    extensions,
     content: initialDoc,
     editable: !readOnly,
     immediatelyRender: false,
     editorProps: {
       attributes: {
         class:
-          'prose-sm max-w-none focus:outline-none px-3 py-2 text-sm leading-relaxed [&_p]:my-1 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-border-strong [&_blockquote]:pl-3 [&_blockquote]:text-fg-muted [&_code]:rounded [&_code]:bg-bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[12px]',
+          'prose-sm max-w-none focus:outline-none px-3 py-2 text-sm leading-relaxed [&_p]:my-1 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-border-strong [&_blockquote]:pl-3 [&_blockquote]:text-fg-muted [&_code]:rounded [&_code]:bg-bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[12px] [&_img]:max-w-full',
         style: `min-height: ${minHeight};`,
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false;
+        const uploader = onUploadImageRef.current;
+        if (!uploader) return false;
+        const files = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
+          f.type.startsWith('image/'),
+        );
+        if (files.length === 0) return false;
+        event.preventDefault();
+        const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        const pos = coords?.pos ?? view.state.selection.from;
+        void (async () => {
+          for (const file of files) {
+            await uploadAndInsertImage(file, pos);
+          }
+        })();
+        return true;
+      },
+      handlePaste: (_view, event) => {
+        const uploader = onUploadImageRef.current;
+        if (!uploader) return false;
+        const items = Array.from(event.clipboardData?.items ?? []);
+        const imageItem = items.find((i) => i.type.startsWith('image/'));
+        if (!imageItem) return false;
+        const file = imageItem.getAsFile();
+        if (!file) return false;
+        event.preventDefault();
+        void uploadAndInsertImage(file);
+        return true;
       },
     },
     onUpdate: ({ editor: ed }) => {
@@ -120,6 +204,10 @@ export function RichEditor({
       debounceRef.current = setTimeout(() => emitChange(ed), debounceMs);
     },
   });
+
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
 
   // Sincroniza valor externo (ex: reload via TanStack Query) quando muda
   // de fonte real e não é eco da própria emissão.
@@ -159,14 +247,37 @@ export function RichEditor({
     <div
       className={`bg-bg border-border focus-within:border-primary/40 focus-within:ring-primary/30 flex flex-col overflow-hidden rounded-md border transition-shadow focus-within:ring-1 ${className ?? ''}`}
     >
-      <Toolbar editor={editor} />
+      <Toolbar
+        editor={editor}
+        canUploadImage={Boolean(onUploadImage)}
+        onPickImage={(file) => {
+          void uploadAndInsertImage(file);
+        }}
+        uploadingImage={uploadingImage}
+      />
       <EditorContent editor={editor} />
-      <FooterStatus isSaving={isSaving} />
+      <FooterStatus
+        isSaving={isSaving}
+        uploadingImage={uploadingImage}
+        uploadError={uploadError}
+        onDismissError={() => setUploadError(null)}
+      />
     </div>
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({
+  editor,
+  canUploadImage,
+  onPickImage,
+  uploadingImage,
+}: {
+  editor: Editor;
+  canUploadImage: boolean;
+  onPickImage: (file: File) => void;
+  uploadingImage: boolean;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isBold = editor.isActive('bold');
   const isItalic = editor.isActive('italic');
   const isUnderline = editor.isActive('underline');
@@ -270,6 +381,26 @@ function Toolbar({ editor }: { editor: Editor }) {
       <ToolbarBtn label="Link" active={isLink} onClick={setLink}>
         <LinkIcon size={14} />
       </ToolbarBtn>
+      {canUploadImage && (
+        <ToolbarBtn
+          label={uploadingImage ? 'Enviando imagem...' : 'Inserir imagem'}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingImage}
+        >
+          <ImageIcon size={14} />
+        </ToolbarBtn>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onPickImage(file);
+          e.target.value = '';
+        }}
+      />
       <Separator />
       <ToolbarBtn
         label="Desfazer (Ctrl+Z)"
@@ -324,7 +455,17 @@ function ToolbarBtn({
   );
 }
 
-function FooterStatus({ isSaving }: { isSaving: boolean }) {
+function FooterStatus({
+  isSaving,
+  uploadingImage,
+  uploadError,
+  onDismissError,
+}: {
+  isSaving: boolean;
+  uploadingImage: boolean;
+  uploadError: string | null;
+  onDismissError: () => void;
+}) {
   const [savedRecently, setSavedRecently] = useState(false);
   const wasSaving = useRef(false);
 
@@ -342,11 +483,27 @@ function FooterStatus({ isSaving }: { isSaving: boolean }) {
     return;
   }, [isSaving]);
 
-  if (!isSaving && !savedRecently) return null;
+  if (!isSaving && !savedRecently && !uploadingImage && !uploadError) return null;
 
   return (
-    <div className="border-border bg-bg-subtle text-fg-muted flex items-center justify-end border-t px-2 py-1 text-[11px]">
-      <span aria-live="polite">{isSaving ? 'Salvando…' : 'Salvo'}</span>
+    <div className="border-border bg-bg-subtle flex items-center justify-between border-t px-2 py-1 text-[11px]">
+      <span className={uploadError ? 'text-danger' : 'text-fg-muted'}>
+        {uploadError ? (
+          <>
+            {uploadError}{' '}
+            <button type="button" onClick={onDismissError} className="underline underline-offset-2">
+              fechar
+            </button>
+          </>
+        ) : uploadingImage ? (
+          'Enviando imagem…'
+        ) : (
+          ''
+        )}
+      </span>
+      <span className="text-fg-muted" aria-live="polite">
+        {isSaving ? 'Salvando…' : savedRecently ? 'Salvo' : ''}
+      </span>
     </div>
   );
 }

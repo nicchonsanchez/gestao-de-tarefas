@@ -129,7 +129,8 @@ export class CardsService {
           orderBy: { position: 'asc' },
         },
         attachments: {
-          where: { commentId: null }, // só anexos diretos do card; os de comments ficam embutidos no comment
+          // só anexos diretos do card visíveis na lista (não comments, não embedded no editor rich)
+          where: { commentId: null, embedded: false },
           orderBy: { createdAt: 'desc' },
           include: { uploader: { select: { id: true, name: true, avatarUrl: true } } },
         },
@@ -139,6 +140,8 @@ export class CardsService {
           include: {
             author: { select: { id: true, name: true, email: true, avatarUrl: true } },
             attachments: {
+              // anexos visiveis do comment — embedded fica embutido no body
+              where: { embedded: false },
               orderBy: { createdAt: 'asc' },
               include: { uploader: { select: { id: true, name: true, avatarUrl: true } } },
             },

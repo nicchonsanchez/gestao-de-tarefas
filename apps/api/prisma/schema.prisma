@@ -420,6 +420,7 @@ model Attachment {
   sizeBytes   Int
   storageKey  String
   kind        AttachmentKind @default(FILE)
+  embedded    Boolean        @default(false) // true = imagem embutida na descricao ou no body do comment (nao aparece na lista de anexos)
   externalUrl String?
   createdAt   DateTime       @default(now())
 
