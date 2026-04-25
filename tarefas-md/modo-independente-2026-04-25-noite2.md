@@ -63,4 +63,6 @@ Reaproveitadas da primeira ativação:
 
 2026-04-25T05:50 — Fase 2B concluida. Commit fe74529 (pushed): RichEditor com Image extension, handleDrop/handlePaste pra interceptar imagens, botao de imagem na toolbar com input file escondido, status "Enviando imagem…/Salvando…/Salvo" no rodape, card-modal wired com `onUploadImage` chamando `uploadAttachment(card.id, file, { embedded: true })` (publicUrl direto pro setImage). Typecheck e lint verdes. WhatsApp enviado.
 
-2026-04-25T05:51 — Encerramento. Budget de retomada apertado (~$0.73 restantes do teto desta sessao). Fase 3 (timeline com anexos + drag-drop) e etapas 3-7 do cronometro ficam pra proxima retomada do cron. State pra proximo ciclo: Fase 2A e 2B fechadas, Fase 3 ainda nao iniciada — retomar exatamente desse ponto. Todos os processos encerrados. Registro de 05:51.
+2026-04-25T05:51 — Encerramento (sessão de cron). Budget de retomada apertado (~$0.73 restantes do teto desta sessao). Fase 3 (timeline com anexos + drag-drop) e etapas 3-7 do cronometro ficam pra proxima retomada do cron. State pra proximo ciclo: Fase 2A e 2B fechadas, Fase 3 ainda nao iniciada — retomar exatamente desse ponto. Todos os processos encerrados. Registro de 05:51.
+
+2026-04-25T04:32 (BRT) — Reativação pelo operador. Operador foi dormir e pediu pra retomar. Fase 2A e 2B já fechadas em commits 7ababde e fe74529 (cron fez antes). Próximo foco: Fase 3 (timeline com anexos + drag-drop), depois etapas 3-7 do cronômetro (doc 18), depois checklist em fallback. Registro de 04:32.
