@@ -146,6 +146,25 @@ function summary(
 
 const INDENT_PX = 28; // espaçamento por nível, igual ao Ummense
 
+// Template de colunas compartilhado entre CurrentCardRow e FamilyRow.
+// Mantém alinhamento vertical entre rows mesmo com indentações diferentes.
+//   col 1 (1fr min 0): título do card
+//   col 2 (180px):     fluxo + mini-progress
+//   col 3 (110px):     avatares
+//   col 4 (75px):      tempo relativo
+//   col 5 (75px):      prazo
+//   col 6 (28px):      menu
+const ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_180px_110px_75px_75px_28px] items-center gap-3';
+
+function dueDateColor(iso: string | null): string {
+  if (!iso) return 'text-fg-muted';
+  const days = (new Date(iso).getTime() - Date.now()) / 86_400_000;
+  if (days < 0) return 'text-danger font-semibold';
+  if (days < 1) return 'text-danger';
+  if (days < 3) return 'text-warning';
+  return 'text-fg-muted';
+}
+
 function CurrentCardRow({ card, indent }: { card: CardDetail; indent: number }) {
   const queryClient = useQueryClient();
   const boardQuery = useQuery({ ...boardsQueries.detail(card.boardId) });
@@ -183,13 +202,18 @@ function CurrentCardRow({ card, indent }: { card: CardDetail; indent: number }) 
   return (
     <>
       <div style={{ paddingLeft: indent * INDENT_PX }} className="relative w-full">
-        <div className="bg-primary-subtle/40 border-primary/40 hover:border-primary/70 relative flex w-full items-center gap-4 rounded-md border p-3 transition-colors">
+        <div
+          style={{ borderLeftColor: board?.color ?? undefined }}
+          className={`bg-primary-subtle/50 border-primary/50 hover:border-primary/80 hover:bg-primary-subtle/70 relative ${ROW_GRID} ${board?.color ? 'border-l-4' : ''} w-full rounded-md border p-3 transition-colors`}
+        >
           <span className="text-primary absolute -left-2 top-3" aria-label="Card atual">
             <MapPin size={16} fill="currentColor" />
           </span>
-          <div className="min-w-0 flex-1 pl-3">
-            <p className="truncate text-sm font-medium">{card.title}</p>
-            <p className="text-fg-muted mt-1 text-[11px]">{board?.name ?? '...'}</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{card.title}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-fg-muted mb-1.5 truncate text-[11px]">{board?.name ?? '...'}</p>
             <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
           </div>
           <Avatars members={card.members} />
@@ -351,11 +375,14 @@ function FamilyRow({
               open();
             }
           }}
-          className="border-border hover:border-border-strong hover:bg-bg-subtle focus-visible:ring-primary flex w-full cursor-pointer items-center gap-4 rounded-md border p-3 transition-colors focus:outline-none focus-visible:ring-2"
+          style={{ borderLeftColor: family.board.color ?? undefined }}
+          className={`border-border hover:border-border-strong hover:bg-bg-subtle focus-visible:ring-primary ${ROW_GRID} ${family.board.color ? 'border-l-4' : ''} w-full cursor-pointer rounded-md border p-3 transition-colors focus:outline-none focus-visible:ring-2`}
         >
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{family.title}</p>
-            <p className="text-fg-muted mt-1 text-[11px]">{family.board.name}</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{family.title}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-fg-muted mb-1.5 truncate text-[11px]">{family.board.name}</p>
             <Minicolumns lists={lists} currentIdx={currentIdx} isCompleted={isCompleted} />
           </div>
           <Avatars members={family.members} />
@@ -514,7 +541,7 @@ function Minicolumns({
 }) {
   return (
     <div
-      className="mt-2 flex h-2 w-full gap-[2px] overflow-hidden rounded-full"
+      className="flex h-2.5 w-full gap-[3px] overflow-hidden rounded-full"
       title={currentIdx >= 0 ? `Coluna atual: ${lists[currentIdx]?.name}` : 'Sem coluna atual'}
     >
       {lists.length === 0 ? (
@@ -575,10 +602,10 @@ function RelativeTime({ date }: { date: string | undefined }) {
 }
 
 function DueDate({ date }: { date: string | null }) {
-  if (!date) return null;
-  return (
-    <div className="text-fg-muted shrink-0 text-[11px]">
-      {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-    </div>
-  );
+  if (!date) return <div />; // mantém grid alinhado mesmo sem prazo
+  const formatted = new Date(date).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+  });
+  return <div className={`shrink-0 text-[11px] ${dueDateColor(date)}`}>{formatted}</div>;
 }
